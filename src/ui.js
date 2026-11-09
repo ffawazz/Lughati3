@@ -28,6 +28,7 @@ function wordsOf(ls) {
 }
 const baseLetters = s => Array.from(strip(s)).filter(ch => /[ء-ي]/.test(ch));
 
+const QW_HINT = { 'كَيْفَ': 'لِلسُّؤَالِ عَنِ الْحَالِ', 'لِمَاذَا': 'لِلسُّؤَالِ عَنِ السَّبَبِ', 'مَنْ': 'لِلسُّؤَالِ عَنِ الْعَاقِلِ', 'مَا': 'لِلسُّؤَالِ عَنْ غَيْرِ الْعَاقِلِ', 'هَلْ': 'سُؤَالٌ جَوَابُهُ نَعَمْ أَوْ لَا' };
 const GEN = {
   sunmoon(ls) {
     const pool = wordsOf(ls).filter(w => { const p = strip(w); return p.startsWith('ال') && p.length >= 4; });
@@ -70,7 +71,7 @@ const GEN = {
     const pool = ls.flatMap(l => l.question || []); if (!pool.length) return null; const it = pick(pool);
     const names = uniq(learned().flatMap(l => l.qwords || []));
     const ds = shuffle(names.filter(n => n !== it.a));
-    return mc(`اخْتَرْ أَدَاةَ الِاسْتِفْهَامِ الْمُنَاسِبَةَ :`, it.a, ds, { speak: `اخْتَرْ أَدَاةَ الِاسْتِفْهَامِ الْمُنَاسِبَةَ : ${it.s.replace('____', ' ... ')}`, concept: 'question', hint: `${it.s.replace('____', it.a)}`, extra: { sub: it.s, clue: it.clue } });
+    return mc(`اخْتَرْ أَدَاةَ الِاسْتِفْهَامِ الْمُنَاسِبَةَ :`, it.a, ds, { speak: `اخْتَرْ أَدَاةَ الِاسْتِفْهَامِ الْمُنَاسِبَةَ : ${it.s.replace('____', ' ... ')}`, concept: 'question', hint: `${it.s.replace('____', it.a)} ${QW_HINT[it.a] ? '( ' + it.a + ' : ' + QW_HINT[it.a] + ' )' : ''}`, extra: { sub: it.s, clue: it.clue } });
   },
   plural(ls) {
     const pool = ls.flatMap(l => l.plural || []); if (pool.length < 3) return null; const [s, p] = pick(pool);
@@ -93,8 +94,10 @@ const GEN = {
     return mc(`مَا أُسْلُوبُ الْجُمْلَةِ ؟ {{${it.s}}}`, it.a, names, { speak: `مَا أُسْلُوبُ الْجُمْلَةِ ؟ ${it.s}`, concept: 'style', hint: `${it.s} : أُسْلُوبُ ${it.a}` });
   },
   alif(ls) {
-    const pool = wordsOf(ls).filter(w => /(ى|اء)$/.test(strip(w))); if (!pool.length) return null; const w = pick(pool); const mq = strip(w).endsWith('ى');
-    return mc(`كَلِمَةُ {{${w}}} آخِرُهَا :`, mq ? 'أَلِفٌ مَقْصُورَةٌ' : 'أَلِفٌ مَمْدُودَةٌ', ['أَلِفٌ مَقْصُورَةٌ', 'أَلِفٌ مَمْدُودَةٌ', 'تَاءٌ مَرْبُوطَةٌ'], { speak: `كَلِمَةُ ${w} آخِرُهَا مَاذَا ؟`, concept: 'alif', hint: mq ? 'تُكْتَبُ عَلَى صُورَةِ يَاءٍ بِلَا نُقَطٍ وَتُنْطَقُ أَلِفًا' : 'أَلِفٌ بَعْدَهَا هَمْزَةٌ فِي آخِرِ الْكَلِمَةِ' });
+    // الألف اللينة آخر الكلمة: مقصورة (ى) أو ممدودة (ا) — كما في ملخص المهارات (لا، دعا، عصا / إلى، مستشفى)
+    const pool = wordsOf(ls).filter(w => !/\u064B/.test(w) && /[ىا]$/.test(strip(w)) && strip(w).length >= 2 && !/اء$/.test(strip(w))); if (!pool.some(w => strip(w).endsWith('ى')) || !pool.some(w => strip(w).endsWith('ا'))) return null;
+    const w = pick(pool); const mq = strip(w).endsWith('ى');
+    return mc(`الْأَلِفُ اللَّيِّنَةُ فِي آخِرِ كَلِمَةِ {{${w}}} هِيَ :`, mq ? 'أَلِفٌ مَقْصُورَةٌ' : 'أَلِفٌ مَمْدُودَةٌ', ['أَلِفٌ مَقْصُورَةٌ', 'أَلِفٌ مَمْدُودَةٌ', 'تَاءٌ مَرْبُوطَةٌ'], { speak: `الْأَلِفُ اللَّيِّنَةُ فِي آخِرِ كَلِمَةِ ${w} ، مَقْصُورَةٌ أَمْ مَمْدُودَةٌ ؟`, concept: 'alif', hint: mq ? 'مَقْصُورَةٌ : تُكْتَبُ عَلَى صُورَةِ يَاءٍ بِلَا نُقْطَتَيْنِ ، وَمَا قَبْلَهَا مَفْتُوحٌ' : 'مَمْدُودَةٌ : تُكْتَبُ أَلِفًا ( ا )' });
   },
   tafdeel(ls) {
     const pool = ls.flatMap(l => l.tafdeel || []); if (pool.length < 3 && uniq(pool.map(p => p.a)).length < 3) { const all = learned().flatMap(l => l.tafdeel || []); if (uniq(all.map(p => p.a)).length < 3 || !pool.length) return null; }
