@@ -42,6 +42,9 @@ html = f"""<!DOCTYPE html>
 {(src / 'content.js').read_text(encoding='utf-8')}
 </script>
 <script>
+{(src / 'book.js').read_text(encoding='utf-8')}
+</script>
+<script>
 {(src / 'engine.js').read_text(encoding='utf-8')}
 </script>
 <script>

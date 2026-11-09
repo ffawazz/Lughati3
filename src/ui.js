@@ -28,10 +28,11 @@ function wordsOf(ls) {
 }
 const baseLetters = s => Array.from(strip(s)).filter(ch => /[ء-ي]/.test(ch));
 
+const NOT_AL = new Set(['الله', 'الذي', 'التي', 'الذين', 'اللذان', 'اللتان']);
 const QW_HINT = { 'كَيْفَ': 'لِلسُّؤَالِ عَنِ الْحَالِ', 'لِمَاذَا': 'لِلسُّؤَالِ عَنِ السَّبَبِ', 'مَنْ': 'لِلسُّؤَالِ عَنِ الْعَاقِلِ', 'مَا': 'لِلسُّؤَالِ عَنْ غَيْرِ الْعَاقِلِ', 'هَلْ': 'سُؤَالٌ جَوَابُهُ نَعَمْ أَوْ لَا' };
 const GEN = {
   sunmoon(ls) {
-    const pool = wordsOf(ls).filter(w => { const p = strip(w); return p.startsWith('ال') && p.length >= 4; });
+    const pool = wordsOf(ls).filter(w => { const p = strip(w); return p.startsWith('ال') && p.length >= 4 && !NOT_AL.has(p); });
     if (pool.length < 2) return null; const w = pick(pool); const p = strip(w); const sun = SUN.includes(p[2]);
     return mc(`مَا نَوْعُ (أَلْ) فِي كَلِمَةِ {{${w}}} ؟`, sun ? 'شَمْسِيَّةٌ' : 'قَمَرِيَّةٌ', ['شَمْسِيَّةٌ', 'قَمَرِيَّةٌ', 'أَصْلِيَّةٌ'],
       { speak: `مَا نَوْعُ أَلْ فِي كَلِمَةِ ${w} ؟`, concept: 'sunmoon', hint: `بَعْدَ (أَلْ) حَرْفُ «${p[2]}» وَهُوَ حَرْفٌ ${sun ? 'شَمْسِيٌّ ، فَاللَّامُ شَمْسِيَّةٌ لَا تُنْطَقُ' : 'قَمَرِيٌّ ، فَاللَّامُ قَمَرِيَّةٌ تُنْطَقُ'}` });
@@ -102,7 +103,7 @@ const GEN = {
   tafdeel(ls) {
     const pool = ls.flatMap(l => l.tafdeel || []); if (pool.length < 3 && uniq(pool.map(p => p.a)).length < 3) { const all = learned().flatMap(l => l.tafdeel || []); if (uniq(all.map(p => p.a)).length < 3 || !pool.length) return null; }
     const all = learned().flatMap(l => l.tafdeel || []); const it = pick(pool);
-    return mc(`أَكْمِلْ بِاسْمِ التَّفْضِيلِ : {{${it.q}}}`, it.a, all.map(p => p.a).concat(['أَكْبَرُ', 'أَقْصَرُ']), { speak: `أَكْمِلْ بِاسْمِ التَّفْضِيلِ : ${it.q.replace('____', ' ... ')}`, concept: 'tafdeel', hint: it.q.replace('____', it.a) });
+    return mc(`أَكْمِلْ بِاسْمِ التَّفْضِيلِ : {{${it.q}}}`, it.a, all.map(p => p.a), { speak: `أَكْمِلْ بِاسْمِ التَّفْضِيلِ : ${it.q.replace('____', ' ... ')}`, concept: 'tafdeel', hint: it.q.replace('____', it.a) });
   },
   nakira(ls) {
     const pool = ls.flatMap(l => l.nakira || []); if (pool.length < 3) return null; const [n, m] = pick(pool);
@@ -125,7 +126,7 @@ const GEN = {
   },
 };
 
-function conceptsAvailable() { return Object.keys(CONCEPTS).filter(c => CONCEPTS[c].from <= Store.data.cur); }
+function conceptsAvailable() { const lim = Store.data.scope === 'all' ? Store.data.cur : Math.min(Store.data.focus, Store.data.cur); return Object.keys(CONCEPTS).filter(c => CONCEPTS[c].from <= lim); }
 function genConcept(c, ls) { for (let t = 0; t < 12; t++) { const q = GEN[c](ls); if (q) return q; } return null; }
 function genRules(n, only) {
   const ls = scopeLessons(); const out = []; const seen = new Set();
@@ -155,7 +156,7 @@ function genBuild(n) {
 // الكلمة الشاذة
 function genOdd(n) {
   const ls = scopeLessons(); const out = []; const maps = [];
-  const wp = wordsOf(ls).filter(w => { const p = strip(w); return p.startsWith('ال') && p.length >= 4; });
+  const wp = wordsOf(ls).filter(w => { const p = strip(w); return p.startsWith('ال') && p.length >= 4 && !NOT_AL.has(p); });
   const sm = { 'شَمْسِيَّةٌ': wp.filter(w => SUN.includes(strip(w)[2])), 'قَمَرِيَّةٌ': wp.filter(w => !SUN.includes(strip(w)[2])) }; maps.push({ m: sm, q: 'أَيُّ كَلِمَةٍ تَخْتَلِفُ فِي نَوْعِ (أَلْ) ؟' });
   const tp = ls.flatMap(l => l.tense || []); const tm = {}; tp.forEach(([w, k]) => (tm[TENSE_NAME[k]] = tm[TENSE_NAME[k]] || []).push(w)); maps.push({ m: tm, q: 'أَيُّ فِعْلٍ يَخْتَلِفُ عَنِ الْآخَرَيْنِ ؟' });
   const wt = wordsOf(ls).filter(w => /[ًٌٍ]/.test(w)); const twm = {}; wt.forEach(w => { const k = TW_NAME[w.match(/[ًٌٍ]/)[0]]; (twm[k] = twm[k] || []).push(w); }); maps.push({ m: twm, q: 'أَيُّ كَلِمَةٍ تَخْتَلِفُ فِي نَوْعِ التَّنْوِينِ ؟' });
@@ -173,15 +174,15 @@ function genOdd(n) {
 const PUNCT = /^[،.؟!:؛]+$/;
 function genFill(n) {
   const ls = scopeLessons(); const out = []; const pre = ls.flatMap(l => (l.fill || []).map(f => ({ f, l })));
-  const sents = ls.flatMap(l => (l.noText ? [] : l.text).map(s => ({ s, l })));
+  const sents = ls.flatMap(l => (l.fillSents || []).map(s => ({ s, l })));
   const items = [];
   pre.forEach(({ f }) => { const q = mc(`أَكْمِلِ الْجُمْلَةَ :`, f.a, f.d, { speak: `أَكْمِلِ الْجُمْلَةَ : ${f.s.replace('____', ' ... ')}`, concept: 'fill', hint: f.s.replace('____', f.a), extra: { sub: f.s, big: false } }); if (q) items.push(q); });
   sents.forEach(({ s, l }) => {
-    const toks = s.split(' ').filter(Boolean); const cand = toks.map((t, i) => i).filter(i => !PUNCT.test(toks[i]) && strip(toks[i]).length >= 4 && !/^[:]/.test(toks[i]));
-    if (toks.length < 4 || !cand.length) return;
-    const i = pick(cand); const a = toks[i]; const others = uniq(l.text.join(' ').split(' ').filter(t => !PUNCT.test(t) && strip(t) !== strip(a) && strip(t).length >= 3));
+    const toks = s.split(' ').filter(Boolean); const cand = toks.map((t, i) => i).filter(i => !PUNCT.test(toks[i]) && strip(toks[i]).length >= 4);
+    if (!cand.length) return;
+    const i = pick(cand); const a = toks[i]; const others = uniq(l.text.join(' ').split(' ').filter(t => !PUNCT.test(t) && strip(t) !== strip(a) && strip(t).length >= 3 && !/["()]/.test(t)));
     const sub = toks.map((t, k) => (k === i ? '____' : t)).join(' ');
-    const q = mc('أَكْمِلِ الْجُمْلَةَ :', a, others, { speak: `أَكْمِلِ الْجُمْلَةَ : ${sub.replace('____', ' ... ')}`, concept: 'fill', hint: s, extra: { sub } }); if (q) items.push(q);
+    const q = mc('أَكْمِلِ الْجُمْلَةَ :', a, others, { speak: `أَكْمِلِ الْجُمْلَةَ : ${sub.replace('____', ' ... ')}`, hint: s, concept: 'fill', extra: { sub } }); if (q) items.push(q);
   });
   return shuffle(items).slice(0, n);
 }
