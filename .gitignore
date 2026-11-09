@@ -1,0 +1,10 @@
+.gradle/
+build/
+app/build/
+local.properties
+node_modules/
+package.json
+package-lock.json
+tests/last-checker-report.json
+*.log
+.idea/

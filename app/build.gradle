@@ -1,0 +1,44 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.lughati3.app'
+    compileSdk 34
+    buildToolsVersion '34.0.0'
+
+    defaultConfig {
+        applicationId 'com.lughati3.app'
+        minSdk 21
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    // index.html يبقى في جذر المستودع ويُنسخ إلى assets أثناء البناء
+    sourceSets {
+        main {
+            assets.srcDirs += layout.buildDirectory.dir('generated/web')
+        }
+    }
+}
+
+def copyWeb = tasks.register('copyWeb', Copy) {
+    from rootProject.file('index.html')
+    into layout.buildDirectory.dir('generated/web')
+}
+
+android.applicationVariants.all { variant ->
+    variant.mergeAssetsProvider.configure { dependsOn(copyWeb) }
+}
