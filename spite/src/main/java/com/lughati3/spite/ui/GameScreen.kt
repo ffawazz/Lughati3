@@ -8,7 +8,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -55,8 +58,8 @@ private fun MenuScreen(onStart: (GameMode) -> Unit) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("Taki Cards", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 36.sp)
-        Text("تكي", color = Gold, fontWeight = FontWeight.Bold, fontSize = 28.sp)
+        Text("Bank", color = Gold, fontWeight = FontWeight.ExtraBold, fontSize = 56.sp)
+        Text("Empty your Bank first", color = Color.White.copy(alpha = 0.8f), fontSize = 16.sp)
         Spacer(Modifier.height(32.dp))
         Button(
             onClick = { onStart(GameMode.VS_AI) }, modifier = Modifier.fillMaxWidth(),
@@ -105,13 +108,15 @@ private fun GameContent(ui: GameUiState, vm: GameViewModel) {
     BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
         val gap = 6.dp
         // 6 columns (bank + 5 ground slots) must fit the width; 4 card rows must fit the height.
-        val byWidth = (maxWidth - 16.dp - gap * 5) / 6
+        // On wide (landscape tablet) screens the board is a centred column, not stretched edge to edge.
+        val boardW = minOf(maxWidth, 860.dp)
+        val byWidth = (boardW - 16.dp - gap * 5) / 6
         val byHeight = ((maxHeight - 250.dp) / 4f) / CARD_ASPECT
-        val cardW = minOf(byWidth, byHeight, 72.dp).coerceAtLeast(36.dp)
+        val cardW = minOf(byWidth, byHeight, 120.dp).coerceAtLeast(36.dp) // large cap: tablets
         val cardH = cardW * CARD_ASPECT
 
         Column(
-            Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 4.dp),
+            Modifier.fillMaxHeight().width(boardW).align(Alignment.TopCenter).padding(horizontal = 8.dp, vertical = 4.dp),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Header(ui, vm::newGame)
@@ -157,7 +162,7 @@ private fun GameContent(ui: GameUiState, vm: GameViewModel) {
 @Composable
 private fun Header(ui: GameUiState, onNewGame: () -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text("Taki Cards", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp)
+        Text("Bank", color = Gold, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp)
         Spacer(Modifier.weight(1f))
         val yours = ui.isHumanTurn
         Text(
