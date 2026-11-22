@@ -2,6 +2,9 @@ package com.lughati3.spite.games.crazyeights
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.lughati3.spite.history.History
+import com.lughati3.spite.history.Outcome
+import com.lughati3.spite.model.GameId
 import com.lughati3.spite.model.Card
 import com.lughati3.spite.model.Suit
 import kotlinx.coroutines.Job
@@ -49,6 +52,7 @@ class CrazyEightsViewModel : ViewModel() {
         }
         val next = rules.play(ui.game, card) ?: return
         _ui.value = ui.copy(game = next, message = "")
+        recordIfOver(next)
         advance()
     }
 
@@ -57,6 +61,7 @@ class CrazyEightsViewModel : ViewModel() {
         val card = ui.pendingEight ?: return
         val next = rules.play(ui.game, card, suit) ?: return
         _ui.value = ui.copy(game = next, pendingEight = null, message = "You chose ${suit.symbol}.")
+        recordIfOver(next)
         advance()
     }
 
@@ -89,9 +94,18 @@ class CrazyEightsViewModel : ViewModel() {
                     val next = rules.play(g, move.first, move.second) ?: return@launch
                     val eight = move.second?.let { " and chose ${it.symbol}" } ?: ""
                     _ui.value = _ui.value.copy(game = next, message = "AI played ${move.first.label}$eight.")
+                    recordIfOver(next)
                 }
             }
         }
+    }
+
+    private fun recordIfOver(g: EightsState) {
+        val winner = g.winner ?: return
+        History.record(
+            GameId.CRAZY_EIGHTS, if (winner == 0) Outcome.WIN else Outcome.LOSS,
+            if (winner == 0) "You played your last card" else "The AI went out — you held ${g.hands[0].size} cards",
+        )
     }
 
     private companion object { const val AI_DELAY_MS = 800L }

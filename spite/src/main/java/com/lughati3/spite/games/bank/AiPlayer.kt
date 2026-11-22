@@ -5,6 +5,9 @@ import com.lughati3.spite.model.Rank
 
 sealed interface AiMove {
     data class Play(val source: CardSource, val pile: Int) : AiMove
+    /** Put a hand card on an empty ground slot (does not end the turn). */
+    data class Fill(val handIndex: Int, val slot: Int) : AiMove
+    /** The Taki: cover a slot of the full ground and end the turn. */
     data class Discard(val handIndex: Int, val slot: Int) : AiMove
     data object Pass : AiMove
 }
@@ -19,7 +22,7 @@ sealed interface AiMove {
 class AiPlayer(private val rules: GameRules) {
 
     fun chooseMove(state: GameState): AiMove =
-        naturalMove(state) ?: jokerMove(state) ?: discardMove(state)
+        naturalMove(state) ?: jokerMove(state) ?: endOfTurnMove(state)
 
     // ---------------------------------------------------------------- 1. Bank > Ground > Hand
 
@@ -129,20 +132,36 @@ class AiPlayer(private val rules: GameRules) {
 
     // ---------------------------------------------------------------- 3. End of turn
 
-    private fun discardMove(state: GameState): AiMove {
+    /** Stopping means: fill every empty ground slot first (turn goes on), then Taki. */
+    private fun endOfTurnMove(state: GameState): AiMove {
         val me = state.current
         if (me.hand.isEmpty()) return AiMove.Pass
+        return if (me.hasEmptyGroundSlot) fillMove(state) else discardMove(state)
+    }
 
+    private fun cardValue(me: PlayerState, card: Card): Double {
+        if (card.isJoker) return 100.0
         val bankRank = me.bankTop?.rank?.value
-        fun value(card: Card): Double {
-            if (card.isJoker) return 100.0
-            val r = card.rank!!.value
-            var v = 14.0 - r                                   // low cards are the most useful
-            if (bankRank != null && (r == bankRank - 1 || r == bankRank - 2)) v += 8.0 // helps reach the bank card
-            return v
-        }
+        val r = card.rank!!.value
+        var v = 14.0 - r                                   // low cards are the most useful
+        if (bankRank != null && (r == bankRank - 1 || r == bankRank - 2)) v += 8.0 // helps reach the bank card
+        return v
+    }
 
-        val slots = me.ground.indices.filter { !me.hasEmptyGroundSlot || me.ground[it].isEmpty() }
+    /** Park the least useful hand card on an empty slot. */
+    private fun fillMove(state: GameState): AiMove {
+        val me = state.current
+        val slot = me.ground.indexOfFirst { it.isEmpty() }
+        val i = me.hand.indices.minBy { cardValue(me, me.hand[it]) }
+        return AiMove.Fill(i, slot)
+    }
+
+    private fun discardMove(state: GameState): AiMove {
+        val me = state.current
+
+        fun value(card: Card) = cardValue(me, card)
+
+        val slots = me.ground.indices
         var best: AiMove.Discard? = null
         var bestCost = Double.MAX_VALUE
         for (i in me.hand.indices) {

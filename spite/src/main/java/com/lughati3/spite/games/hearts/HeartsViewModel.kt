@@ -2,6 +2,9 @@ package com.lughati3.spite.games.hearts
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.lughati3.spite.history.History
+import com.lughati3.spite.history.Outcome
+import com.lughati3.spite.model.GameId
 import com.lughati3.spite.model.Card
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -112,6 +115,7 @@ class HeartsViewModel : ViewModel() {
                         delay(PICKUP_DELAY_MS)
                         val next = rules.resolveTrick(g) ?: return@launch
                         _ui.value = _ui.value.copy(game = next, message = trickMessage(g, next))
+                        if (next.phase == HeartsPhase.GAME_OVER) recordGameOver(next)
                     }
                     HeartsPhase.PLAYING -> {
                         if (g.turn == 0) { _ui.value = _ui.value.copy(message = _ui.value.message.ifEmpty { hint(g) }); return@launch }
@@ -124,6 +128,15 @@ class HeartsViewModel : ViewModel() {
                 }
             }
         }
+    }
+
+    private fun recordGameOver(g: HeartsState) {
+        val won = 0 in g.winners
+        val scores = SEAT_NAMES.indices.joinToString(", ") { "${SEAT_NAMES[it]} ${g.totalScores[it]}" }
+        History.record(
+            GameId.HEARTS, if (won) Outcome.WIN else Outcome.LOSS,
+            "${g.round + 1} rounds · $scores", score = g.totalScores[0],
+        )
     }
 
     private fun trickMessage(before: HeartsState, after: HeartsState): String {

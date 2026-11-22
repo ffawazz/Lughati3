@@ -48,7 +48,7 @@ import com.lughati3.spite.ui.components.dragSource
 import kotlin.math.abs
 
 @Composable
-fun KlondikeScreen(onHome: () -> Unit, vm: KlondikeViewModel = viewModel()) {
+fun KlondikeScreen(onHome: () -> Unit, onHelp: () -> Unit, vm: KlondikeViewModel = viewModel()) {
     val ui by vm.uiState.collectAsStateWithLifecycle()
     val g = ui.game
     val density = LocalDensity.current
@@ -102,7 +102,7 @@ fun KlondikeScreen(onHome: () -> Unit, vm: KlondikeViewModel = viewModel()) {
 
         Box(Modifier.fillMaxSize().onGloballyPositioned { boardOrigin = it.positionInRoot() }) {
             Column(Modifier.fillMaxHeight().width(boardW).align(Alignment.TopCenter)) {
-                GameTopBar("Solitaire", onHome) {
+                GameTopBar("Solitaire", onHome, onHelp = onHelp) {
                     SmallButton("Undo", vm::undo, enabled = ui.canUndo)
                     Box(Modifier.width(6.dp))
                     SmallButton("Auto ▲", vm::autoComplete)

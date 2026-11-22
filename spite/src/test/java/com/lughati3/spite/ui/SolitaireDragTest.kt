@@ -64,7 +64,7 @@ class SolitaireDragTest {
 
     @Test fun draggingARunMovesAllItsCards() {
         val vm = vm()
-        rule.setContent { KlondikeScreen(onHome = {}, vm = vm) }
+        rule.setContent { KlondikeScreen(onHome = {}, onHelp = {}, vm = vm) }
         dragCardOnto(from = "7♥", to = "8♣")       // red 7 onto black 8, carrying the 6♠ along
         val g = vm.uiState.value.game
         assertEquals(listOf(3, 1, 2), g.tableau[1].map { it.card.id })
@@ -73,7 +73,7 @@ class SolitaireDragTest {
 
     @Test fun draggingToAnIllegalPlaceSnapsBack() {
         val vm = vm()
-        rule.setContent { KlondikeScreen(onHome = {}, vm = vm) }
+        rule.setContent { KlondikeScreen(onHome = {}, onHelp = {}, vm = vm) }
         dragCardOnto(from = "6♠", to = "A♦")        // 6♠ cannot go on an Ace
         val g = vm.uiState.value.game
         assertEquals(2, g.tableau[0].size)
@@ -83,7 +83,7 @@ class SolitaireDragTest {
 
     @Test fun draggingAnAceToItsFoundationWorks() {
         val vm = vm()
-        rule.setContent { KlondikeScreen(onHome = {}, vm = vm) }
+        rule.setContent { KlondikeScreen(onHome = {}, onHelp = {}, vm = vm) }
         dragCardOnto(from = "A♦", to = "Empty slot ♦")
         val g = vm.uiState.value.game
         assertEquals(1, g.foundations[Suit.entries.indexOf(Suit.DIAMONDS)].size)
@@ -92,7 +92,7 @@ class SolitaireDragTest {
 
     @Test fun tappingStillWorks() {
         val vm = vm()
-        rule.setContent { KlondikeScreen(onHome = {}, vm = vm) }
+        rule.setContent { KlondikeScreen(onHome = {}, onHelp = {}, vm = vm) }
         rule.onNodeWithContentDescription("8♣").performTouchInput { click() }
         rule.waitForIdle()
         assertEquals(com.lughati3.spite.games.klondike.KSource.Tableau(1, 0), vm.uiState.value.selected)

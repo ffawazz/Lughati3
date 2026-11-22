@@ -1,6 +1,9 @@
 package com.lughati3.spite.games.klondike
 
 import androidx.lifecycle.ViewModel
+import com.lughati3.spite.history.History
+import com.lughati3.spite.history.Outcome
+import com.lughati3.spite.model.GameId
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,6 +31,13 @@ class KlondikeViewModel(initial: KlondikeState? = null) : ViewModel() {
     val uiState: StateFlow<KlondikeUiState> = _ui.asStateFlow()
 
     fun newGame(drawCount: Int = _ui.value.game.drawCount) {
+        val g = _ui.value.game
+        if (g.moves > 0 && !g.isWon) { // walked away from a game in progress
+            History.record(
+                GameId.SOLITAIRE, Outcome.LOSS, "Draw ${g.drawCount} · gave up after ${g.moves} moves",
+                variant = "Draw ${g.drawCount}",
+            )
+        }
         history.clear()
         _ui.value = KlondikeUiState(rules.newGame(drawCount))
     }
@@ -105,6 +115,12 @@ class KlondikeViewModel(initial: KlondikeState? = null) : ViewModel() {
             return
         }
         history.addLast(ui.game)
+        if (next.isWon && !ui.game.isWon) {
+            History.record(
+                GameId.SOLITAIRE, Outcome.WIN, "Draw ${next.drawCount} · ${next.moves} moves",
+                score = next.moves, variant = "Draw ${next.drawCount}",
+            )
+        }
         _ui.update {
             KlondikeUiState(next, null, canUndo = true, message = if (next.isWon) "You won in ${next.moves} moves!" else "")
         }

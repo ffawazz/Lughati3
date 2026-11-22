@@ -39,7 +39,7 @@ import com.lughati3.spite.ui.theme.CardRed
 import com.lughati3.spite.ui.theme.Gold
 
 @Composable
-fun CrazyEightsScreen(onHome: () -> Unit, vm: CrazyEightsViewModel = viewModel()) {
+fun CrazyEightsScreen(onHome: () -> Unit, onHelp: () -> Unit, vm: CrazyEightsViewModel = viewModel()) {
     val ui by vm.uiState.collectAsStateWithLifecycle()
     val g = ui.game
     val legal = vm.legal()
@@ -52,7 +52,7 @@ fun CrazyEightsScreen(onHome: () -> Unit, vm: CrazyEightsViewModel = viewModel()
             Modifier.fillMaxHeight().width(boardW).align(Alignment.TopCenter),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            GameTopBar("Crazy Eights", onHome) { SmallButton("New", vm::newGame) }
+            GameTopBar("Crazy Eights", onHome, onHelp = onHelp) { SmallButton("New", vm::newGame) }
 
             // AI hand (face down)
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {

@@ -45,7 +45,7 @@ import com.lughati3.spite.ui.theme.Gold
 import com.lughati3.spite.ui.theme.TakiAmber
 
 @Composable
-fun HeartsScreen(onHome: () -> Unit, vm: HeartsViewModel = viewModel()) {
+fun HeartsScreen(onHome: () -> Unit, onHelp: () -> Unit, vm: HeartsViewModel = viewModel()) {
     val ui by vm.uiState.collectAsStateWithLifecycle()
     val g = ui.game
 
@@ -60,7 +60,7 @@ fun HeartsScreen(onHome: () -> Unit, vm: HeartsViewModel = viewModel()) {
             Modifier.fillMaxHeight().width(boardW).align(Alignment.TopCenter).padding(bottom = 12.dp),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            GameTopBar("Hearts", onHome) { SmallButton("New", vm::newGame) }
+            GameTopBar("Hearts", onHome, onHelp = onHelp) { SmallButton("New", vm::newGame) }
             Scoreboard(g)
 
             Seat(2, g, tw, Modifier.align(Alignment.CenterHorizontally))

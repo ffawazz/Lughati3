@@ -31,7 +31,7 @@ import com.lughati3.spite.ui.components.StatusText
 import com.lughati3.spite.ui.theme.TargetGreen
 
 @Composable
-fun FreeCellScreen(onHome: () -> Unit, vm: FreeCellViewModel = viewModel()) {
+fun FreeCellScreen(onHome: () -> Unit, onHelp: () -> Unit, vm: FreeCellViewModel = viewModel()) {
     val ui by vm.uiState.collectAsStateWithLifecycle()
     val g = ui.game
 
@@ -44,7 +44,7 @@ fun FreeCellScreen(onHome: () -> Unit, vm: FreeCellViewModel = viewModel()) {
         val cascadeMax = maxHeight - w * CARD_ASPECT - 100.dp
 
         Column(Modifier.fillMaxHeight().width(boardW).align(Alignment.TopCenter)) {
-            GameTopBar("FreeCell", onHome) {
+            GameTopBar("FreeCell", onHome, onHelp = onHelp) {
                 SmallButton("Undo", vm::undo, enabled = ui.canUndo)
                 Box(Modifier.width(6.dp))
                 SmallButton("Auto ▲", vm::autoComplete)

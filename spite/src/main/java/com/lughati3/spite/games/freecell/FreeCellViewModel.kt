@@ -1,6 +1,9 @@
 package com.lughati3.spite.games.freecell
 
 import androidx.lifecycle.ViewModel
+import com.lughati3.spite.history.History
+import com.lughati3.spite.history.Outcome
+import com.lughati3.spite.model.GameId
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,6 +23,10 @@ class FreeCellViewModel : ViewModel() {
     val uiState: StateFlow<FreeCellUiState> = _ui.asStateFlow()
 
     fun newGame() {
+        val g = _ui.value.game
+        if (g.moves > 0 && !g.isWon) {
+            History.record(GameId.FREECELL, Outcome.LOSS, "Gave up after ${g.moves} moves")
+        }
         history.clear()
         _ui.value = FreeCellUiState(rules.newGame())
     }
@@ -110,6 +117,9 @@ class FreeCellViewModel : ViewModel() {
             return
         }
         history.addLast(ui.game)
+        if (next.isWon && !ui.game.isWon) {
+            History.record(GameId.FREECELL, Outcome.WIN, "Solved in ${next.moves} moves", score = next.moves)
+        }
         _ui.value = FreeCellUiState(next, null, true, if (next.isWon) "You won in ${next.moves} moves!" else "")
     }
 }

@@ -21,7 +21,7 @@ class BankRulesTest {
     private fun player(
         hand: List<Card> = emptyList(),
         bank: List<Card> = listOf(c(Rank.KING)),
-        ground: List<List<Card>> = List(5) { emptyList() },
+        ground: List<List<Card>> = List(5) { listOf(c(Rank.KING)) }, // a full ground by default
     ) = PlayerState("p", true, hand, ground, bank)
 
     private fun state(me: PlayerState, deck: List<Card> = emptyList(), piles: List<List<PileCard>>? = null) = GameState(
@@ -43,8 +43,8 @@ class BankRulesTest {
 
     @Test fun newGameDealsCorrectly() {
         val g = rules.newGame()
-        g.players.forEach { assertEquals(5, it.hand.size); assertEquals(10, it.bank.size); assertEquals(5, it.ground.size) }
-        assertEquals(108 - 30, g.drawPile.size)
+        g.players.forEach { assertEquals(5, it.hand.size); assertEquals(10, it.bank.size); assertEquals(5, it.ground.size); assertTrue(it.ground.all { g -> g.size == 1 }) }
+        assertEquals(108 - 40, g.drawPile.size) // 2 x (5 hand + 5 ground + 10 bank)
         assertEquals(4, g.centerPiles.size)
         assertEquals(GameState.HUMAN, g.currentPlayer)
     }
@@ -53,7 +53,7 @@ class BankRulesTest {
         val g = rules.newGame(twoPlayers = true)
         assertEquals(listOf("Player 1", "Player 2"), g.players.map { it.name })
         assertTrue(g.players.all { it.isHuman })
-        assertEquals(78, g.drawPile.size)
+        assertEquals(68, g.drawPile.size) // 108 - 2 x 20 dealt
     }
 
     @Test fun onlyAceOrJokerStartsAPile() {
@@ -111,19 +111,46 @@ class BankRulesTest {
         assertNull(rules.playToCenter(s, CardSource.Ground(1), 0)) // empty slot
     }
 
-    @Test fun discardMustUseEmptySlotUntilAllFilled_thenTakiCovers() {
-        val ground = listOf(listOf(c(Rank.TWO)), emptyList(), emptyList(), emptyList(), emptyList())
-        val s = state(player(hand = listOf(c(Rank.SEVEN)), ground = ground), List(10) { c(Rank.NINE) })
-        assertNull(rules.discard(s, 0, 0)) // slot 0 is taken, empties exist
-        val after = rules.discard(s, 0, 1)!!
-        assertEquals(1, after.currentPlayer) // turn passed
-        assertEquals(5, after.players[1].hand.size)
+    @Test fun cannotTakiWhileAGroundSlotIsEmpty() {
+        val ground = listOf(listOf(c(Rank.TWO)), emptyList(), listOf(c(Rank.TWO)), listOf(c(Rank.TWO)), listOf(c(Rank.TWO)))
+        val s = state(player(hand = listOf(c(Rank.SEVEN), c(Rank.EIGHT)), ground = ground), List(10) { c(Rank.NINE) })
+        assertNull(rules.discard(s, 0, 0)) // covering a slot is a Taki: not allowed yet
+        assertNull(rules.discard(s, 0, 1)) // ...and even onto the empty slot it is not a Taki
+    }
 
+    @Test fun fillingTheGroundDoesNotEndTheTurn() {
+        val ground = listOf(listOf(c(Rank.TWO)), emptyList(), emptyList(), listOf(c(Rank.TWO)), listOf(c(Rank.TWO)))
+        val s = state(player(hand = listOf(c(Rank.SEVEN), c(Rank.EIGHT), c(Rank.NINE)), ground = ground), List(10) { c(Rank.NINE) })
+        assertNull(rules.fillGround(s, 0, 0)) // slot 0 is occupied
+        val one = rules.fillGround(s, 0, 1)!!
+        assertEquals(0, one.state.currentPlayer) // still my turn
+        assertEquals(2, one.state.current.hand.size)
+        val two = rules.fillGround(one.state, 0, 2)!!
+        assertTrue(!two.state.current.hasEmptyGroundSlot)
+        // now the ground is full: the Taki is allowed and ends the turn
+        val taki = rules.discard(two.state, 0, 3)!!
+        assertEquals(1, taki.currentPlayer)
+        assertEquals(2, taki.players[0].ground[3].size)
+        assertEquals(Rank.NINE, taki.players[0].groundTop(3)!!.rank)
+    }
+
+    @Test fun emptyingTheHandWhileFillingDrawsFiveAndTurnContinues() {
+        val ground = listOf(listOf(c(Rank.TWO)), emptyList(), emptyList(), listOf(c(Rank.TWO)), listOf(c(Rank.TWO)))
+        val s = state(player(hand = listOf(c(Rank.SEVEN)), ground = ground), List(10) { c(Rank.NINE) })
+        val r = rules.fillGround(s, 0, 1)!!
+        assertTrue(r.handRefilled)
+        assertEquals(5, r.state.current.hand.size)
+        assertEquals(0, r.state.currentPlayer) // must still fill slot 2 and Taki
+    }
+
+    @Test fun takiOnAFullGroundCoversTheTopCard() {
         val full = List(5) { listOf(c(Rank.TWO)) }
         val t = state(player(hand = listOf(c(Rank.SEVEN)), ground = full), List(10) { c(Rank.NINE) })
         val taki = rules.discard(t, 0, 3)!!
         assertEquals(2, taki.players[0].ground[3].size)
         assertEquals(Rank.SEVEN, taki.players[0].groundTop(3)!!.rank)
+        assertEquals(1, taki.currentPlayer)
+        assertEquals(5, taki.players[1].hand.size)
     }
 
     @Test fun drawPileReshufflesCompletedPiles() {
@@ -151,10 +178,18 @@ class BankRulesTest {
         val unlock = state(player(hand = listOf(joker(), c(Rank.NINE)), bank = listOf(c(Rank.TWO))))
         val m = ai.chooseMove(unlock) as AiMove.Play
         assertEquals(CardSource.Hand(0), m.source)
-        // Nothing to unlock: the Joker is kept and a non-joker is discarded.
+        // Nothing to unlock: the Joker is kept and a non-joker is used to Taki.
         val keep = state(player(hand = listOf(joker(), c(Rank.NINE)), bank = listOf(c(Rank.SIX))))
         val k = ai.chooseMove(keep) as AiMove.Discard
         assertEquals(1, k.handIndex)
+    }
+
+    @Test fun aiFillsEmptyGroundSlotsBeforeTaki() {
+        val ground = listOf(listOf(c(Rank.TWO)), emptyList(), listOf(c(Rank.FIVE)), listOf(c(Rank.FIVE)), listOf(c(Rank.FIVE)))
+        val s = state(player(hand = listOf(joker(), c(Rank.NINE)), bank = listOf(c(Rank.SIX)), ground = ground.map { it.map { x -> if (x.rank == Rank.TWO) c(Rank.KING) else x } }))
+        val m = AiPlayer(rules).chooseMove(s) as AiMove.Fill
+        assertEquals(1, m.slot)       // the empty slot
+        assertEquals(1, m.handIndex)  // the 9, never the Joker
     }
 
     @Test fun aiTakiAvoidsBuryingUsefulCards() {
@@ -177,6 +212,7 @@ class BankRulesTest {
                 check(steps++ < 20_000) { "seed $seed did not finish" }
                 s = when (val m = ai.chooseMove(s)) {
                     is AiMove.Play -> r.playToCenter(s, m.source, m.pile)!!.state
+                    is AiMove.Fill -> r.fillGround(s, m.handIndex, m.slot)!!.state
                     is AiMove.Discard -> r.discard(s, m.handIndex, m.slot)!!
                     AiMove.Pass -> r.passTurn(s)!!
                 }

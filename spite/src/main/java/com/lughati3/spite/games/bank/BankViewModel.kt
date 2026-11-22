@@ -2,6 +2,9 @@ package com.lughati3.spite.games.bank
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.lughati3.spite.history.History
+import com.lughati3.spite.history.Outcome
+import com.lughati3.spite.model.GameId
 import com.lughati3.spite.model.Card
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -110,14 +113,31 @@ class BankViewModel : ViewModel() {
             return
         }
         if (slot !in ui.validDiscardSlots) {
-            say("You still have an empty slot — place the card there.")
+            say("Your ground isn't full yet — fill the empty slots first.")
             return
         }
         val card = ui.game.current.hand[hand.index]
         val who = ui.game.current.name
+
+        // Ground not full: this card just fills an empty slot and the turn goes on.
+        if (ui.game.current.hasEmptyGroundSlot) {
+            val r = rules.fillGround(ui.game, hand.index, slot) ?: return
+            val empties = r.state.current.ground.count { it.isEmpty() }
+            val note = if (r.handRefilled) " Hand empty — drew 5 new cards." else ""
+            _uiState.value = ui.copy(
+                game = r.state, selected = null,
+                discardMode = empties > 0, // stay in fill mode until the ground is full
+                message = when {
+                    empties > 0 -> "Placed ${card.label} on slot ${slot + 1}. $empties empty slot(s) left.$note"
+                    else -> "Ground is full.$note Keep playing, or Taki (cover any slot) to end your turn."
+                },
+            )
+            return
+        }
+
+        // Ground full: this is the Taki and it ends the turn.
         val next = rules.discard(ui.game, hand.index, slot) ?: return
-        val taki = !ui.game.current.hasEmptyGroundSlot
-        afterTurnEnded(ui.copy(game = next), "$who placed ${card.label} on slot ${slot + 1}${if (taki) " (Taki!)" else ""}.")
+        afterTurnEnded(ui.copy(game = next), "$who played Taki: ${card.label} on slot ${slot + 1}.")
     }
 
     /** Tapping a centre pile plays the selected card there if it is legal. */
@@ -135,6 +155,21 @@ class BankViewModel : ViewModel() {
             game = result.state, selected = null,
             message = describePlay(ui.game.current.name, card, pile, result),
         )
+        recordIfOver(result.state, ui.mode)
+    }
+
+    /** Logs a finished game once (a winner exists only on the transition that ends it). */
+    private fun recordIfOver(game: GameState, mode: GameMode?) {
+        val winner = game.winner ?: return
+        if (mode == GameMode.TWO_PLAYERS) {
+            History.record(GameId.BANK, Outcome.PLAYED, "2 players · ${game.players[winner].name} won", variant = "2 players")
+        } else {
+            val won = winner == GameState.HUMAN
+            History.record(
+                GameId.BANK, if (won) Outcome.WIN else Outcome.LOSS,
+                if (won) "You emptied your Bank first" else "The AI emptied its Bank first", variant = "vs AI",
+            )
+        }
     }
 
     /** The "End turn (Taki / تكي)" button. */
@@ -152,8 +187,8 @@ class BankViewModel : ViewModel() {
             selected = null,
             message = when {
                 !enter -> YOUR_TURN_HINT
-                rules.isTakiRequired(ui.game) -> "TAKI (تكي): pick a hand card, then a ground slot to cover."
-                else -> "Pick a hand card, then an empty ground slot."
+                rules.isTakiRequired(ui.game) -> "TAKI (تكي): pick a hand card, then a ground slot to cover. This ends your turn."
+                else -> "Fill your ground first: pick a hand card, then an empty slot (${ui.game.current.ground.count { it.isEmpty() }} empty)."
             },
         )
     }
@@ -186,17 +221,17 @@ class BankViewModel : ViewModel() {
                         val card = state.current.cardAt(move.source) ?: return@launch
                         val result = rules.playToCenter(state, move.source, move.pile) ?: return@launch
                         _uiState.update { it.copy(game = result.state, message = describePlay("AI", card, move.pile, result)) }
-                        if (result.state.isOver) return@launch
+                        if (result.state.isOver) { recordIfOver(result.state, _uiState.value.mode); return@launch }
+                    }
+                    is AiMove.Fill -> {
+                        val r = rules.fillGround(state, move.handIndex, move.slot) ?: return@launch
+                        val note = if (r.handRefilled) " — hand empty, drew 5 new cards" else ""
+                        _uiState.update { it.copy(game = r.state, message = "AI filled ground slot ${move.slot + 1}$note.") }
                     }
                     is AiMove.Discard -> {
-                        val card = state.current.hand[move.handIndex]
-                        val taki = !state.current.hasEmptyGroundSlot
                         val next = rules.discard(state, move.handIndex, move.slot) ?: return@launch
                         _uiState.update {
-                            it.copy(
-                                game = next,
-                                message = "AI placed a card on its ground slot ${move.slot + 1}${if (taki) " (Taki!)" else ""}. Your turn.",
-                            )
+                            it.copy(game = next, message = "AI played Taki on slot ${move.slot + 1}. Your turn.")
                         }
                         return@launch
                     }
@@ -226,6 +261,6 @@ class BankViewModel : ViewModel() {
     private companion object {
         const val AI_DELAY_MS = 750L
         const val MAX_AI_MOVES_PER_TURN = 200
-        const val YOUR_TURN_HINT = "Your turn: tap a card, then a highlighted pile. Press End Turn when done."
+        const val YOUR_TURN_HINT = "Your turn: play cards to the centre. To stop: fill any empty ground slots, then Taki."
     }
 }

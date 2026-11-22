@@ -29,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -43,13 +44,13 @@ import com.lughati3.spite.ui.theme.Gold
 import com.lughati3.spite.ui.theme.TakiAmber
 
 @Composable
-fun BankScreen(onHome: () -> Unit, viewModel: BankViewModel = viewModel()) {
+fun BankScreen(onHome: () -> Unit, onHelp: () -> Unit, viewModel: BankViewModel = viewModel()) {
     val ui by viewModel.uiState.collectAsStateWithLifecycle()
-    if (ui.mode == null) MenuScreen(viewModel::startGame, onHome) else GameContent(ui, viewModel, onHome)
+    if (ui.mode == null) MenuScreen(viewModel::startGame, onHome, onHelp) else GameContent(ui, viewModel, onHome, onHelp)
 }
 
 @Composable
-private fun MenuScreen(onStart: (GameMode) -> Unit, onHome: () -> Unit) {
+private fun MenuScreen(onStart: (GameMode) -> Unit, onHome: () -> Unit, onHelp: () -> Unit) {
     Column(
         Modifier.fillMaxSize().safeDrawingPadding().padding(32.dp),
         verticalArrangement = Arrangement.Center,
@@ -68,6 +69,10 @@ private fun MenuScreen(onStart: (GameMode) -> Unit, onHome: () -> Unit) {
             colors = ButtonDefaults.buttonColors(containerColor = TakiAmber, contentColor = Color.Black),
         ) { Text("2 Players  ·  pass & play", fontWeight = FontWeight.Bold) }
         Spacer(Modifier.height(12.dp))
+        OutlinedButton(onClick = onHelp, modifier = Modifier.fillMaxWidth()) {
+            Text("? How to play", color = Color.White)
+        }
+        Spacer(Modifier.height(8.dp))
         OutlinedButton(onClick = onHome, modifier = Modifier.fillMaxWidth()) {
             Text("⌂ All games", color = Color.White)
         }
@@ -84,7 +89,7 @@ private fun MenuScreen(onStart: (GameMode) -> Unit, onHome: () -> Unit) {
 private fun HandoffCover(ui: GameUiState, onReady: () -> Unit) {
     Column(
         Modifier.fillMaxSize().background(Color(0xFF0B1F14)).safeDrawingPadding().padding(32.dp)
-            .clickable(enabled = false) {},
+            .pointerInput(Unit) {}, // swallow touches: the next player must not see or tap anything
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -101,7 +106,7 @@ private fun HandoffCover(ui: GameUiState, onReady: () -> Unit) {
 }
 
 @Composable
-private fun GameContent(ui: GameUiState, vm: BankViewModel, onHome: () -> Unit) {
+private fun GameContent(ui: GameUiState, vm: BankViewModel, onHome: () -> Unit, onHelp: () -> Unit) {
     val game = ui.game
     val human = game.players[ui.viewer]      // bottom of the screen
     val ai = game.players[1 - ui.viewer]     // top of the screen (the AI, or the other human)
@@ -120,7 +125,7 @@ private fun GameContent(ui: GameUiState, vm: BankViewModel, onHome: () -> Unit) 
             Modifier.fillMaxHeight().width(boardW).align(Alignment.TopCenter).padding(horizontal = 8.dp, vertical = 4.dp),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            Header(ui, vm::newGame, onHome)
+            Header(ui, vm::newGame, onHome, onHelp)
 
             // ---- AI: hand (hidden), then bank + ground
             AiHandRow(ai.name, ai.hand.size, cardW)
@@ -161,7 +166,7 @@ private fun GameContent(ui: GameUiState, vm: BankViewModel, onHome: () -> Unit) 
 // ------------------------------------------------------------------------------------ header
 
 @Composable
-private fun Header(ui: GameUiState, onNewGame: () -> Unit, onHome: () -> Unit) {
+private fun Header(ui: GameUiState, onNewGame: () -> Unit, onHome: () -> Unit, onHelp: () -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text("Bank", color = Gold, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp)
         Spacer(Modifier.weight(1f))
@@ -181,6 +186,10 @@ private fun Header(ui: GameUiState, onNewGame: () -> Unit, onHome: () -> Unit) {
         Spacer(Modifier.width(8.dp))
         OutlinedButton(onClick = onNewGame, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)) {
             Text("New Game", color = Color.White, fontSize = 12.sp)
+        }
+        Spacer(Modifier.width(6.dp))
+        OutlinedButton(onClick = onHelp, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)) {
+            Text("? Rules", color = Color.White, fontSize = 12.sp)
         }
         Spacer(Modifier.width(6.dp))
         OutlinedButton(onClick = onHome, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)) {
@@ -313,7 +322,7 @@ private fun ActionRow(ui: GameUiState, vm: BankViewModel) {
                     taki -> "Cancel"
                     ui.game.current.hand.isEmpty() -> "Pass"
                     needsTaki -> "End Turn · Taki (تكي)"
-                    else -> "End Turn (place a card)"
+                    else -> "Fill ground (${ui.game.current.ground.count { it.isEmpty() }} empty)"
                 },
                 fontWeight = FontWeight.Bold,
             )

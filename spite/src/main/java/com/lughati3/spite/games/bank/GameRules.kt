@@ -5,6 +5,9 @@ import com.lughati3.spite.model.Deck
 import com.lughati3.spite.model.Rank
 import kotlin.random.Random
 
+/** Outcome of filling an empty ground slot. */
+data class GroundResult(val state: GameState, val handRefilled: Boolean)
+
 /** Outcome of a successful play to the centre. */
 data class MoveResult(
     val state: GameState,
@@ -30,8 +33,8 @@ class GameRules(private val random: Random = Random.Default) {
         fun take(n: Int): List<Card> = deck.subList(cursor, cursor + n).also { cursor += n }
 
         val players = listOf(
-            PlayerState(if (twoPlayers) "Player 1" else "You", true, take(HAND_SIZE), List(GROUND_SLOTS) { emptyList() }, take(BANK_SIZE)),
-            PlayerState(if (twoPlayers) "Player 2" else "AI", twoPlayers, take(HAND_SIZE), List(GROUND_SLOTS) { emptyList() }, take(BANK_SIZE)),
+            dealPlayer(if (twoPlayers) "Player 1" else "You", true, ::take),
+            dealPlayer(if (twoPlayers) "Player 2" else "AI", twoPlayers, ::take),
         )
         return GameState(
             players = players,
@@ -40,6 +43,14 @@ class GameRules(private val random: Random = Random.Default) {
             completedCards = emptyList(),
             currentPlayer = GameState.HUMAN, // hands were dealt, so no start-of-turn draw is needed
         )
+    }
+
+    /** Hand of 5, a Bank of 10, and one face-up card already on each of the 5 ground slots. */
+    private fun dealPlayer(name: String, human: Boolean, take: (Int) -> List<Card>): PlayerState {
+        val hand = take(HAND_SIZE)
+        val ground = take(GROUND_SLOTS).map { listOf(it) }
+        val bank = take(BANK_SIZE)
+        return PlayerState(name, human, hand, ground, bank)
     }
 
     // ---------------------------------------------------------------- playing to the centre
@@ -80,8 +91,29 @@ class GameRules(private val random: Random = Random.Default) {
     // ---------------------------------------------------------------- ending the turn
 
     /**
-     * Ends the turn by moving a hand card to the Ground Table. While a slot is empty the card must
-     * go to an empty slot; once all 5 are filled it may go on top of any slot (the "Taki" move).
+     * Fills an EMPTY ground slot with a hand card. This does not end the turn: the ground must be a
+     * full five before the turn may end. If it empties the hand, 5 new cards are drawn at once and
+     * the turn continues (same refill rule as playing the last hand card to the centre).
+     */
+    fun fillGround(state: GameState, handIndex: Int, slot: Int): GroundResult? {
+        if (state.isOver) return null
+        val player = state.current
+        val card = player.hand.getOrNull(handIndex) ?: return null
+        if (slot !in 0 until GROUND_SLOTS || player.ground[slot].isNotEmpty()) return null
+
+        val updated = player.copy(
+            hand = player.hand.filterIndexed { i, _ -> i != handIndex },
+            ground = player.ground.mapIndexed { i, stack -> if (i == slot) listOf(card) else stack },
+        )
+        var next = state.withPlayer(state.currentPlayer, updated)
+        val refilled = updated.hand.isEmpty()
+        if (refilled) next = draw(next, state.currentPlayer, HAND_SIZE)
+        return GroundResult(next, refilled)
+    }
+
+    /**
+     * The "Taki" (تكي): with the ground full (all 5 slots occupied), places a hand card on top of any
+     * slot — covering what was there — and ends the turn. Illegal while any slot is empty.
      * Returns the state at the start of the opponent's turn (already refilled to 5 cards).
      */
     fun discard(state: GameState, handIndex: Int, slot: Int): GameState? {
@@ -89,7 +121,7 @@ class GameRules(private val random: Random = Random.Default) {
         val player = state.current
         val card = player.hand.getOrNull(handIndex) ?: return null
         if (slot !in 0 until GROUND_SLOTS) return null
-        if (player.hasEmptyGroundSlot && player.ground[slot].isNotEmpty()) return null
+        if (player.hasEmptyGroundSlot) return null
 
         val updated = player.copy(
             hand = player.hand.filterIndexed { i, _ -> i != handIndex },

@@ -97,12 +97,17 @@ fun GameTopBar(
     title: String,
     onHome: () -> Unit,
     modifier: Modifier = Modifier,
+    onHelp: (() -> Unit)? = null,
     extra: @Composable () -> Unit = {},
 ) {
     Row(modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(title, color = Gold, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp)
         Spacer(Modifier.weight(1f))
         extra()
+        if (onHelp != null) {
+            Spacer(Modifier.width(6.dp))
+            SmallButton("? How to play", onHelp)
+        }
         Spacer(Modifier.width(6.dp))
         OutlinedButton(onClick = onHome, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)) {
             Text("⌂ Games", color = Color.White, fontSize = 12.sp)

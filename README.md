@@ -48,12 +48,13 @@ export ANDROID_HOME=/path/to/sdk             # platforms;android-34 و build-too
 - فاحص الخط ضُبط على محاكاة (هيكل خط Amiri وخطوط أخرى بدل خط طفل حقيقي). يقبل الكتابة الصحيحة بحجم/مكان مختلف، لكنه **ليس تعرّفاً على الحروف**: قد يقبل كلمة خاطئة قريبة الشكل (في المحاكاة قُبلت كلمات خاطئة بنسبة ٢٥٪ في عيّنة كبيرة و٧ من ١٨ في اختبار `tests/run.js`) وقد يرفض كتابة صحيحة رديئة — لذلك يوجد زر الوالدين.
 
 ## مجموعة ألعاب الورق (وحدة `spite/`)
-تطبيق مستقل عن التطبيق التعليمي، مُحسَّن للتابلت (أفقي وعمودي): شاشة رئيسية وخمس ألعاب — **Bank** (لاعب أو لاعبان على جهاز واحد) · **Solitaire** (Klondike، سحب ١ أو ٣، تراجع) · **FreeCell** (تراجع، نقل متسلسلات) · **Hearts** (٣ خصوم، تمرير ٣ أوراق، إطلاق القمر) · **Crazy Eights** (ضد الذكاء الاصطناعي).
+تطبيق مستقل عن التطبيق التعليمي، مُحسَّن للتابلت (أفقي وعمودي): شاشة رئيسية وخمس ألعاب — **Bank** (لاعب أو لاعبان على جهاز واحد؛ تبدأ الأرضية بخمس أوراق ولا تنهي دورك قبل ملء الأرضية ثم «تكي») · **Solitaire** (Klondike، سحب ١ أو ٣، تراجع) · **FreeCell** (تراجع، نقل متسلسلات) · **Hearts** (٣ خصوم، تمرير ٣ أوراق، إطلاق القمر) · **Crazy Eights** (ضد الذكاء الاصطناعي) · **Memory** (ذاكرة، ٣ مستويات). لكل لعبة شرح «How to play» مفصّل، وشاشة **History** تحفظ النتائج وأفضل الأرقام (SharedPreferences).
 ```
 spite/src/main/java/com/lughati3/spite/
   model/        Card, Rank, Suit, Deck (المشترك)
   ui/           AppRoot (التنقل) · hub/HubScreen · components/ (PlayingCard, CardColumn, ...) · theme/
-  games/bank/ · klondike/ · freecell/ · hearts/ · crazyeights/
+  games/bank/ · klondike/ · freecell/ · hearts/ · crazyeights/ · memory/
+  history/      History (سجل النتائج) · ui/history · ui/help (الشروحات)
                 كل لعبة: Rules (دوال نقية) + ViewModel + Screen (+ AiPlayer عند الحاجة)
 spite/src/test/ اختبارات القواعد + مباريات كاملة بالذكاء الاصطناعي
 ```
