@@ -20,11 +20,11 @@ data class KlondikeUiState(
     }
 }
 
-class KlondikeViewModel : ViewModel() {
+class KlondikeViewModel(initial: KlondikeState? = null) : ViewModel() {
     val rules = KlondikeRules()
     private val history = ArrayDeque<KlondikeState>()
 
-    private val _ui = MutableStateFlow(KlondikeUiState(rules.newGame()))
+    private val _ui = MutableStateFlow(KlondikeUiState(initial ?: rules.newGame()))
     val uiState: StateFlow<KlondikeUiState> = _ui.asStateFlow()
 
     fun newGame(drawCount: Int = _ui.value.game.drawCount) {
@@ -61,6 +61,17 @@ class KlondikeViewModel : ViewModel() {
 
     fun onTableauEmptyTapped(column: Int) {
         if (_ui.value.selected != null) tryMove(KTarget.Tableau(column))
+    }
+
+    /** A drag began on [source]: select it so valid drop targets light up. */
+    fun onDragStart(source: KSource) {
+        if (rules.cardsAt(_ui.value.game, source) != null) _ui.update { it.copy(selected = source, message = "") }
+    }
+
+    /** The drag ended over [target] (null = dropped on nothing). Illegal drops just snap back. */
+    fun onDrop(target: KTarget?) {
+        if (target != null) tryMove(target)
+        _ui.update { it.copy(selected = null) }
     }
 
     /** First tap selects; tapping the selected card again tries its foundation, else deselects. */

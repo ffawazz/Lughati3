@@ -17,6 +17,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -46,6 +48,12 @@ fun CardColumn(
     emptyLabel: String = "",
     onCardClick: (Int) -> Unit,
     onEmptyClick: () -> Unit,
+    /** Optional drag-and-drop: (card index, card's top-left in root coords, touch point inside the card). */
+    onDragStart: ((Int, Offset, Offset) -> Unit)? = null,
+    onDragBy: (Offset) -> Unit = {},
+    onDragEnd: () -> Unit = {},
+    /** Cards from this index down are being dragged elsewhere: draw them invisible (they still own the gesture). */
+    hiddenFrom: Int? = null,
 ) {
     val cardH = width * CARD_ASPECT
     if (cards.isEmpty()) {
@@ -67,7 +75,15 @@ fun CardColumn(
                 faceDown = !up,
                 selected = selectedFrom != null && i >= selectedFrom,
                 highlighted = highlightTop && i == cards.lastIndex,
-                modifier = Modifier.offset(y = y),
+                modifier = Modifier
+                    .offset(y = y)
+                    .alpha(if (hiddenFrom != null && i >= hiddenFrom) 0f else 1f)
+                    .dragSource(
+                        enabled = onDragStart != null && up,
+                        onStart = { origin, touch -> onDragStart?.invoke(i, origin, touch) },
+                        onDelta = onDragBy,
+                        onEnd = onDragEnd,
+                    ),
                 onClick = { onCardClick(i) },
             )
             y += steps[i] * k

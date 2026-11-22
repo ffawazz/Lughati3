@@ -36,6 +36,9 @@ android {
     composeOptions {
         kotlinCompilerExtensionVersion '1.5.14' // matches Kotlin 1.9.24
     }
+    testOptions {
+        unitTests.includeAndroidResources = true
+    }
     packaging {
         resources {
             excludes += '/META-INF/{AL2.0,LGPL2.1}'
@@ -55,4 +58,8 @@ dependencies {
     implementation 'androidx.compose.material3:material3'
 
     testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.robolectric:robolectric:4.12.2'
+    testImplementation composeBom
+    testImplementation 'androidx.compose.ui:ui-test-junit4'
+    debugImplementation 'androidx.compose.ui:ui-test-manifest'
 }
