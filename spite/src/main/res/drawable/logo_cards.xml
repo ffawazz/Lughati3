@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Logo artwork: a fan of three cards (♥ ♠ ♦) with a gold ring. Used as the launcher foreground and on the hub. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- gold ring -->
+    <path
+        android:pathData="M54,54m-35,0a35,35 0 1,0 70,0a35,35 0 1,0 -70,0"
+        android:strokeColor="#FFD54F"
+        android:strokeWidth="1.6"
+        android:strokeAlpha="0.9" />
+
+    <group android:pivotX="54" android:pivotY="60" android:scaleX="0.84" android:scaleY="0.84">
+    <!-- left card: hearts -->
+    <group android:pivotX="54" android:pivotY="86" android:rotation="-30">
+        <path android:pathData="M39,31 h30 a4,4 0 0 1 4,4 v34 a4,4 0 0 1 -4,4 h-30 a4,4 0 0 1 -4,-4 v-34 a4,4 0 0 1 4,-4 Z"
+            android:fillColor="#FFFFFF" android:strokeColor="#B0BEC5" android:strokeWidth="0.8" />
+        <group android:translateX="44.5" android:translateY="45" android:scaleX="7" android:scaleY="7">
+            <path android:pathData="M0,0.9 C-1.25,-0.05 -1,-0.95 -0.45,-0.95 C-0.2,-0.95 0,-0.75 0,-0.5 C0,-0.75 0.2,-0.95 0.45,-0.95 C1,-0.95 1.25,-0.05 0,0.9 Z" android:fillColor="#D32F2F" />
+        </group>
+    </group>
+
+    <!-- right card: diamonds -->
+    <group android:pivotX="54" android:pivotY="86" android:rotation="30">
+        <path android:pathData="M39,31 h30 a4,4 0 0 1 4,4 v34 a4,4 0 0 1 -4,4 h-30 a4,4 0 0 1 -4,-4 v-34 a4,4 0 0 1 4,-4 Z"
+            android:fillColor="#FFFFFF" android:strokeColor="#B0BEC5" android:strokeWidth="0.8" />
+        <group android:translateX="63.5" android:translateY="45" android:scaleX="7.5" android:scaleY="7.5">
+            <path android:pathData="M0,-1 C0.15,-0.5 0.5,-0.15 0.75,0 C0.5,0.15 0.15,0.5 0,1 C-0.15,0.5 -0.5,0.15 -0.75,0 C-0.5,-0.15 -0.15,-0.5 0,-1 Z" android:fillColor="#D32F2F" />
+        </group>
+    </group>
+
+    <!-- front card: spades -->
+    <group android:pivotX="54" android:pivotY="86">
+        <path android:pathData="M39,29 h30 a4,4 0 0 1 4,4 v34 a4,4 0 0 1 -4,4 h-30 a4,4 0 0 1 -4,-4 v-34 a4,4 0 0 1 4,-4 Z"
+            android:fillColor="#FFFFFF" android:strokeColor="#90A4AE" android:strokeWidth="0.8" />
+        <group android:translateX="54" android:translateY="50" android:scaleX="9.5" android:scaleY="9.5">
+            <path android:pathData="M0,-1 C-0.2,-0.6 -1.1,-0.2 -1.1,0.3 C-1.1,0.8 -0.4,0.9 -0.1,0.45 C-0.1,0.8 -0.25,0.95 -0.5,1 L0.5,1 C0.25,0.95 0.1,0.8 0.1,0.45 C0.4,0.9 1.1,0.8 1.1,0.3 C1.1,-0.2 0.2,-0.6 0,-1 Z" android:fillColor="#212121" />
+        </group>
+        <group android:translateX="41.5" android:translateY="34.5" android:scaleX="2.4" android:scaleY="2.4">
+            <path android:pathData="M0,-1 C-0.2,-0.6 -1.1,-0.2 -1.1,0.3 C-1.1,0.8 -0.4,0.9 -0.1,0.45 C-0.1,0.8 -0.25,0.95 -0.5,1 L0.5,1 C0.25,0.95 0.1,0.8 0.1,0.45 C0.4,0.9 1.1,0.8 1.1,0.3 C1.1,-0.2 0.2,-0.6 0,-1 Z" android:fillColor="#212121" />
+        </group>
+    </group>
+    </group>
+</vector>

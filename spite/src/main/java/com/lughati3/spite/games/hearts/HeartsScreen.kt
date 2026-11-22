@@ -52,11 +52,14 @@ fun HeartsScreen(onHome: () -> Unit, vm: HeartsViewModel = viewModel()) {
     BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 8.dp)) {
         val boardW = minOf(maxWidth, 900.dp)
         val byWidth = (boardW - 16.dp) / (1f + 12 * HAND_STEP)
-        val byHeight = (maxHeight - 250.dp) / (CARD_ASPECT * 3.3f)
+        val byHeight = (maxHeight - 290.dp) / (CARD_ASPECT * 3.3f)
         val hw = minOf(byWidth, byHeight, 110.dp).coerceAtLeast(30.dp)
         val tw = hw * 0.85f
 
-        Column(Modifier.fillMaxHeight().width(boardW).align(Alignment.TopCenter), verticalArrangement = Arrangement.SpaceBetween) {
+        Column(
+            Modifier.fillMaxHeight().width(boardW).align(Alignment.TopCenter).padding(bottom = 12.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
+        ) {
             GameTopBar("Hearts", onHome) { SmallButton("New", vm::newGame) }
             Scoreboard(g)
 

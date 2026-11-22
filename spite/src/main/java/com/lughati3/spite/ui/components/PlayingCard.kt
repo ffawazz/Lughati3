@@ -2,6 +2,19 @@ package com.lughati3.spite.ui.components
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.foundation.layout.width
+import com.lughati3.spite.model.Suit
+import kotlin.math.cos
+import kotlin.math.sin
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -66,16 +79,16 @@ fun PlayingCard(
         else -> BorderStroke(1.dp, Color(0x55000000))
     }
     val faceBrush = when {
-        faceDown -> Brush.linearGradient(listOf(Color(0xFF283593), Color(0xFF1A237E)))
-        card?.isJoker == true -> Brush.verticalGradient(listOf(Color(0xFFF3E5F5), Color(0xFFD1C4E9)))
-        else -> Brush.verticalGradient(listOf(Color.White, Color(0xFFF5F5F5)))
+        faceDown -> Brush.linearGradient(listOf(Color(0xFF3949AB), Color(0xFF1A237E)))
+        card?.isJoker == true -> Brush.verticalGradient(listOf(Color(0xFFFFFFFF), Color(0xFFE1D5F0)))
+        else -> Brush.verticalGradient(listOf(Color(0xFFFFFFFF), Color(0xFFF1EFE9)))
     }
 
     Box(
         modifier
             .offset(y = lift)
             .size(width, height)
-            .shadow(if (selected) 8.dp else 3.dp, shape)
+            .shadow(if (selected) 10.dp else 3.dp, shape)
             .clip(shape)
             .background(faceBrush)
             .border(border, shape)
@@ -84,49 +97,168 @@ fun PlayingCard(
         contentAlignment = Alignment.Center,
     ) {
         when {
-            faceDown -> Box(
-                Modifier
-                    .size(width * 0.8f, height * 0.86f)
-                    .border(1.dp, Color(0x88FFFFFF), RoundedCornerShape(width * 0.06f)),
-            )
+            faceDown -> CardBack(width)
             card == null -> Unit
             card.isJoker -> JokerFace(width, jokerAs)
-            else -> NumberFace(card, width)
+            else -> CardFace(card, width)
         }
     }
 }
 
+// ---------------------------------------------------------------------------------- card back
+
 @Composable
-private fun NumberFace(card: Card, width: Dp) {
-    val color = if (card.suit!!.isRed) CardRed else CardBlack
-    Box(Modifier.size(width, width * CARD_ASPECT)) {
-        Column(Modifier.padding(start = width * 0.08f, top = width * 0.04f)) {
-            Text(
-                card.rank!!.label, color = color, fontWeight = FontWeight.Bold,
-                fontSize = (width.value * 0.30f).sp, lineHeight = (width.value * 0.32f).sp,
-            )
-            Text(card.suit.symbol, color = color, fontSize = (width.value * 0.24f).sp, lineHeight = (width.value * 0.24f).sp)
+private fun CardBack(width: Dp) {
+    Canvas(Modifier.size(width, width * CARD_ASPECT)) {
+        val w = size.width
+        val h = size.height
+        val inset = w * 0.09f
+        val inner = Rect(inset, inset, w - inset, h - inset)
+        val corner = CornerRadius(w * 0.06f)
+        // diamond lattice clipped to the inner panel
+        clipRect(inner.left, inner.top, inner.right, inner.bottom) {
+            val step = w * 0.16f
+            var x = -h
+            while (x < w + h) {
+                drawLine(Color(0x33FFFFFF), Offset(x, 0f), Offset(x + h, h), strokeWidth = w * 0.012f)
+                drawLine(Color(0x33FFFFFF), Offset(x, h), Offset(x + h, 0f), strokeWidth = w * 0.012f)
+                x += step
+            }
         }
-        Text(
-            card.suit.symbol, color = color, fontSize = (width.value * 0.55f).sp,
-            modifier = Modifier.align(Alignment.BottomEnd).padding(end = width * 0.08f, bottom = width * 0.04f),
+        drawRoundRect(Color(0xCCFFFFFF), inner.topLeft, inner.size, corner, style = Stroke(w * 0.025f))
+        // centre medallion
+        val c = Offset(w / 2, h / 2)
+        drawCircle(Color(0xFF1A237E), w * 0.2f, c)
+        drawCircle(Gold, w * 0.2f, c, style = Stroke(w * 0.03f))
+        drawSuit(Suit.SPADES, c, w * 0.22f, Gold)
+    }
+}
+
+// ---------------------------------------------------------------------------------- card face
+
+/** Where the pips of each rank sit: (x, y) as fractions of the pip area, x in {0, .5, 1}. */
+private fun pipLayout(value: Int): List<Pair<Float, Float>> {
+    val l = 0f; val c = 0.5f; val r = 1f
+    return when (value) {
+        1 -> listOf(c to 0.5f)
+        2 -> listOf(c to 0f, c to 1f)
+        3 -> listOf(c to 0f, c to 0.5f, c to 1f)
+        4 -> listOf(l to 0f, r to 0f, l to 1f, r to 1f)
+        5 -> listOf(l to 0f, r to 0f, c to 0.5f, l to 1f, r to 1f)
+        6 -> listOf(l to 0f, r to 0f, l to 0.5f, r to 0.5f, l to 1f, r to 1f)
+        7 -> listOf(l to 0f, r to 0f, c to 0.25f, l to 0.5f, r to 0.5f, l to 1f, r to 1f)
+        8 -> listOf(l to 0f, r to 0f, c to 0.25f, l to 0.5f, r to 0.5f, c to 0.75f, l to 1f, r to 1f)
+        9 -> listOf(l to 0f, r to 0f, l to 0.33f, r to 0.33f, c to 0.5f, l to 0.67f, r to 0.67f, l to 1f, r to 1f)
+        else -> listOf(
+            l to 0f, r to 0f, c to 0.17f, l to 0.33f, r to 0.33f,
+            l to 0.67f, r to 0.67f, c to 0.83f, l to 1f, r to 1f,
         )
     }
 }
+
+@Composable
+private fun CardFace(card: Card, width: Dp) {
+    val suit = card.suit!!
+    val rank = card.rank!!
+    val color = suit.color
+    val isCourt = rank.value >= 11
+    val h = width * CARD_ASPECT
+
+    Box(Modifier.size(width, h)) {
+        // centre artwork: pips for A-10, a framed panel for J/Q/K
+        Canvas(Modifier.size(width, h)) {
+            val w = size.width
+            val hh = size.height
+            val areaL = w * 0.37f   // keeps the pips clear of the corner indices
+            val areaR = w * 0.63f
+            val areaT = hh * 0.14f
+            val areaB = hh * 0.86f
+            if (isCourt) {
+                val panel = Rect(w * 0.31f, areaT, w * 0.69f, areaB)
+                drawRoundRect(color.copy(alpha = 0.07f), panel.topLeft, panel.size, CornerRadius(w * 0.05f))
+                drawRoundRect(Gold, panel.topLeft, panel.size, CornerRadius(w * 0.05f), style = Stroke(w * 0.022f))
+                drawSuit(suit, Offset(panel.left + w * 0.09f, panel.top + w * 0.09f), w * 0.12f, color)
+                drawSuit(suit, Offset(panel.right - w * 0.09f, panel.bottom - w * 0.09f), w * 0.12f, color, upsideDown = true)
+            } else {
+                val single = rank.value == 1
+                val pip = if (single) w * 0.5f else if (rank.value >= 9) w * 0.16f else w * 0.19f
+                for ((fx, fy) in pipLayout(rank.value)) {
+                    val p = Offset(areaL + fx * (areaR - areaL), areaT + fy * (areaB - areaT))
+                    drawSuit(suit, p, pip, color, upsideDown = fy > 0.5f && !single)
+                }
+            }
+        }
+        if (isCourt) {
+            Text(
+                rank.label, color = color, fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold,
+                fontSize = (width.value * 0.4f).sp, modifier = Modifier.align(Alignment.Center),
+            )
+        }
+        Corner(rank.label, suit, width, Modifier.align(Alignment.TopStart))
+        Corner(rank.label, suit, width, Modifier.align(Alignment.BottomEnd).rotate(180f))
+    }
+}
+
+/** The rank + suit index in a card corner. */
+@Composable
+private fun Corner(label: String, suit: Suit, width: Dp, modifier: Modifier) {
+    val size = if (label.length > 1) 0.21f else 0.27f
+    Column(modifier.padding(start = width * 0.05f, top = width * 0.035f), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            label, color = suit.color, fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold,
+            fontSize = (width.value * size).sp, lineHeight = (width.value * 0.3f).sp, maxLines = 1, softWrap = false,
+            style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false)),
+        )
+        SuitIcon(suit, width * 0.15f)
+    }
+}
+
+// ---------------------------------------------------------------------------------- joker
 
 @Composable
 private fun JokerFace(width: Dp, jokerAs: Rank?) {
-    val purple = Color(0xFF6A1B9A)
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("★", color = purple, fontSize = (width.value * 0.45f).sp)
+    val h = width * CARD_ASPECT
+    Box(Modifier.size(width, h)) {
+        Canvas(Modifier.size(width, h)) {
+            val w = size.width
+            val hh = size.height
+            // jester star with a jingle at each point
+            val c = Offset(w / 2, hh * 0.52f)
+            val outer = w * 0.3f
+            val inner = outer * 0.45f
+            val star = Path()
+            for (i in 0 until 10) {
+                val r = if (i % 2 == 0) outer else inner
+                val a = Math.toRadians(-90.0 + i * 36.0)
+                val p = Offset(c.x + (r * cos(a)).toFloat(), c.y + (r * sin(a)).toFloat())
+                if (i == 0) star.moveTo(p.x, p.y) else star.lineTo(p.x, p.y)
+            }
+            star.close()
+            drawPath(star, Brush.linearGradient(listOf(Color(0xFFFFE082), Color(0xFFFF8F00))))
+            drawPath(star, Color(0xFF6A1B9A), style = Stroke(w * 0.02f))
+            val dots = listOf(Color(0xFFE53935), Color(0xFF1E88E5), Color(0xFF43A047), Color(0xFFE53935), Color(0xFF1E88E5))
+            for (i in 0 until 5) {
+                val a = Math.toRadians(-90.0 + i * 72.0)
+                val p = Offset(c.x + (outer * 1.12f * cos(a)).toFloat(), c.y + (outer * 1.12f * sin(a)).toFloat())
+                drawCircle(dots[i], w * 0.045f, p)
+            }
+            drawCircle(Color(0xFF6A1B9A), w * 0.07f, c)
+        }
+        val purple = Color(0xFF6A1B9A)
         Text(
-            "JOKER", color = purple, fontWeight = FontWeight.ExtraBold,
-            fontSize = (width.value * 0.19f).sp, maxLines = 1,
+            "JOKER", color = purple, fontWeight = FontWeight.ExtraBold, maxLines = 1,
+            fontSize = (width.value * 0.17f).sp, letterSpacing = (width.value * 0.01f).sp,
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = width * 0.05f),
         )
         if (jokerAs != null) {
             Text(
-                "(${jokerAs.label})", color = purple, fontWeight = FontWeight.Bold,
-                fontSize = (width.value * 0.26f).sp, textAlign = TextAlign.Center,
+                "(${jokerAs.label})", color = Color.White, fontWeight = FontWeight.Bold,
+                fontSize = (width.value * 0.24f).sp,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = width * 0.06f)
+                    .background(purple, RoundedCornerShape(50))
+                    .padding(horizontal = width * 0.1f),
             )
         }
     }
@@ -163,7 +295,10 @@ fun EmptySlot(
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         contentAlignment = Alignment.Center,
     ) {
-        if (label.isNotEmpty()) {
+        val suit = Suit.entries.firstOrNull { it.symbol == label }
+        if (suit != null) {
+            SuitIcon(suit, width * 0.4f, color = color.copy(alpha = if (highlighted) 1f else 0.7f))
+        } else if (label.isNotEmpty()) {
             Text(label, color = color, fontWeight = FontWeight.Bold, fontSize = (width.value * 0.3f).sp)
         }
     }

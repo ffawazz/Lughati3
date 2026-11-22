@@ -112,7 +112,7 @@ private fun GameContent(ui: GameUiState, vm: BankViewModel, onHome: () -> Unit) 
         // On wide (landscape tablet) screens the board is a centred column, not stretched edge to edge.
         val boardW = minOf(maxWidth, 860.dp)
         val byWidth = (boardW - 16.dp - gap * 5) / 6
-        val byHeight = ((maxHeight - 250.dp) / 4f) / CARD_ASPECT
+        val byHeight = ((maxHeight - 285.dp) / 4f) / CARD_ASPECT
         val cardW = minOf(byWidth, byHeight, 120.dp).coerceAtLeast(36.dp) // large cap: tablets
         val cardH = cardW * CARD_ASPECT
 
