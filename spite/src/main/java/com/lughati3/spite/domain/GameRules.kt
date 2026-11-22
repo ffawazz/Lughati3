@@ -28,14 +28,14 @@ class GameRules(private val random: Random = Random.Default) {
 
     // ---------------------------------------------------------------- setup
 
-    fun newGame(): GameState {
+    fun newGame(twoPlayers: Boolean = false): GameState {
         val deck = Deck.create().shuffled(random)
         var cursor = 0
         fun take(n: Int): List<Card> = deck.subList(cursor, cursor + n).also { cursor += n }
 
         val players = listOf(
-            PlayerState("You", true, take(HAND_SIZE), List(GROUND_SLOTS) { emptyList() }, take(BANK_SIZE)),
-            PlayerState("AI", false, take(HAND_SIZE), List(GROUND_SLOTS) { emptyList() }, take(BANK_SIZE)),
+            PlayerState(if (twoPlayers) "Player 1" else "You", true, take(HAND_SIZE), List(GROUND_SLOTS) { emptyList() }, take(BANK_SIZE)),
+            PlayerState(if (twoPlayers) "Player 2" else "AI", twoPlayers, take(HAND_SIZE), List(GROUND_SLOTS) { emptyList() }, take(BANK_SIZE)),
         )
         return GameState(
             players = players,

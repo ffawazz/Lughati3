@@ -48,7 +48,7 @@ export ANDROID_HOME=/path/to/sdk             # platforms;android-34 و build-too
 - فاحص الخط ضُبط على محاكاة (هيكل خط Amiri وخطوط أخرى بدل خط طفل حقيقي). يقبل الكتابة الصحيحة بحجم/مكان مختلف، لكنه **ليس تعرّفاً على الحروف**: قد يقبل كلمة خاطئة قريبة الشكل (في المحاكاة قُبلت كلمات خاطئة بنسبة ٢٥٪ في عيّنة كبيرة و٧ من ١٨ في اختبار `tests/run.js`) وقد يرفض كتابة صحيحة رديئة — لذلك يوجد زر الوالدين.
 
 ## لعبة «تكي» للورق (وحدة `spite/`)
-لعبة ورق لاعبان (أنت ضد الذكاء الاصطناعي) مستوحاة من Spite & Malice / Skip-Bo، مكتوبة بـ Kotlin + Jetpack Compose (MVVM). وحدة مستقلة عن التطبيق التعليمي.
+لعبة ورق لاعبان (ضد الذكاء الاصطناعي، أو لاعبان على جهاز واحد بشاشة تمرير بين الأدوار) مستوحاة من Spite & Malice / Skip-Bo، مكتوبة بـ Kotlin + Jetpack Compose (MVVM). وحدة مستقلة عن التطبيق التعليمي.
 ```
 spite/src/main/java/com/lughati3/spite/
   model/    Card, Rank, Suit, Deck · PlayerState, CardSource · GameState, PileCard

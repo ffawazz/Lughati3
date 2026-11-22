@@ -56,6 +56,13 @@ class GameRulesTest {
         assertEquals(GameState.HUMAN, g.currentPlayer)
     }
 
+    @Test fun twoPlayerGameNamesBothPlayersHuman() {
+        val g = rules.newGame(twoPlayers = true)
+        assertEquals(listOf("Player 1", "Player 2"), g.players.map { it.name })
+        assertTrue(g.players.all { it.isHuman })
+        assertEquals(78, g.drawPile.size)
+    }
+
     @Test fun onlyAceOrJokerStartsAPile() {
         val s = state(player(hand = listOf(c(Rank.TWO), c(Rank.ACE), joker())))
         assertNull(rules.playToCenter(s, CardSource.Hand(0), 0))

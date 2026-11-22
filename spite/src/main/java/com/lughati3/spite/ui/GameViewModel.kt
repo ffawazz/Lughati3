@@ -21,15 +21,24 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** Everything the screen renders: the game plus transient input state. */
+enum class GameMode { VS_AI, TWO_PLAYERS }
+
 data class GameUiState(
     val game: GameState,
+    /** null = the mode menu is showing. */
+    val mode: GameMode? = null,
+    /** Pass-and-play: cover screen shown between turns so the next player's hand stays private. */
+    val handoff: Boolean = false,
     val selected: CardSource? = null,
     /** "Taki" mode: the player chose to end the turn and must now pick a hand card + ground slot. */
     val discardMode: Boolean = false,
     val message: String = "",
 ) {
-    val isHumanTurn: Boolean get() = !game.isOver && game.currentPlayer == GameState.HUMAN
-    val selectedCard: Card? get() = selected?.let { game.players[GameState.HUMAN].cardAt(it) }
+    /** Index of the player shown at the bottom of the screen (always the one whose turn it is in 2-player mode). */
+    val viewer: Int get() = if (mode == GameMode.TWO_PLAYERS) game.currentPlayer else GameState.HUMAN
+    val isHumanTurn: Boolean
+        get() = !game.isOver && !handoff && (mode == GameMode.TWO_PLAYERS || game.currentPlayer == GameState.HUMAN)
+    val selectedCard: Card? get() = selected?.let { game.players[viewer].cardAt(it) }
 
     /** Centre piles that accept the selected card (highlighted in the UI). */
     val validPiles: Set<Int>
@@ -41,7 +50,7 @@ data class GameUiState(
     /** Ground slots that can receive the selected hand card in Taki mode. */
     val validDiscardSlots: Set<Int>
         get() {
-            val me = game.players[GameState.HUMAN]
+            val me = game.players[viewer]
             if (!isHumanTurn || !discardMode || selected !is CardSource.Hand) return emptySet()
             return me.ground.indices.filter { !me.hasEmptyGroundSlot || me.ground[it].isEmpty() }.toSet()
         }
@@ -52,19 +61,40 @@ class GameViewModel : ViewModel() {
     private val rules = GameRules()
     private val ai = AiPlayer(rules)
 
-    private val _uiState = MutableStateFlow(freshState())
+    private val _uiState = MutableStateFlow(GameUiState(rules.newGame()))
     val uiState: StateFlow<GameUiState> = _uiState.asStateFlow()
 
     private var aiJob: Job? = null
 
     // ------------------------------------------------------------------ lifecycle
 
+    /** Back to the mode menu. */
     fun newGame() {
         aiJob?.cancel()
-        _uiState.value = freshState()
+        _uiState.value = GameUiState(rules.newGame())
     }
 
-    private fun freshState() = GameUiState(rules.newGame(), message = YOUR_TURN_HINT)
+    fun startGame(mode: GameMode) {
+        aiJob?.cancel()
+        _uiState.value = GameUiState(
+            game = rules.newGame(twoPlayers = mode == GameMode.TWO_PLAYERS),
+            mode = mode,
+            message = if (mode == GameMode.TWO_PLAYERS) "Player 1 starts. $YOUR_TURN_HINT" else YOUR_TURN_HINT,
+        )
+    }
+
+    /** The next player confirmed they hold the device: reveal their cards. */
+    fun onHandoffConfirmed() = _uiState.update { it.copy(handoff = false, message = YOUR_TURN_HINT) }
+
+    /** After the human's turn ended: AI mode -> AI plays; 2-player mode -> cover the screen. */
+    private fun afterTurnEnded(ui: GameUiState, summary: String) {
+        if (ui.mode == GameMode.TWO_PLAYERS) {
+            _uiState.value = ui.copy(handoff = true, selected = null, discardMode = false, message = summary)
+        } else {
+            _uiState.value = ui.copy(selected = null, discardMode = false, message = "$summary AI's turn…")
+            startAiTurn()
+        }
+    }
 
     // ------------------------------------------------------------------ human input
 
@@ -89,14 +119,11 @@ class GameViewModel : ViewModel() {
             say("You still have an empty slot — place the card there.")
             return
         }
-        val card = ui.game.players[GameState.HUMAN].hand[hand.index]
+        val card = ui.game.current.hand[hand.index]
+        val who = ui.game.current.name
         val next = rules.discard(ui.game, hand.index, slot) ?: return
         val taki = !ui.game.current.hasEmptyGroundSlot
-        _uiState.value = ui.copy(
-            game = next, selected = null, discardMode = false,
-            message = "You placed ${card.label} on slot ${slot + 1}${if (taki) " (Taki!)" else ""}. AI's turn…",
-        )
-        startAiTurn()
+        afterTurnEnded(ui.copy(game = next), "$who placed ${card.label} on slot ${slot + 1}${if (taki) " (Taki!)" else ""}.")
     }
 
     /** Tapping a centre pile plays the selected card there if it is legal. */
@@ -112,7 +139,7 @@ class GameViewModel : ViewModel() {
         }
         _uiState.value = ui.copy(
             game = result.state, selected = null,
-            message = describePlay("You", card, pile, result),
+            message = describePlay(ui.game.current.name, card, pile, result),
         )
     }
 
@@ -122,8 +149,7 @@ class GameViewModel : ViewModel() {
         if (!ui.isHumanTurn) return
         if (ui.game.current.hand.isEmpty()) { // nothing to place: just pass
             val next = rules.passTurn(ui.game) ?: return
-            _uiState.value = ui.copy(game = next, selected = null, discardMode = false, message = "You passed. AI's turn…")
-            startAiTurn()
+            afterTurnEnded(ui.copy(game = next), "${ui.game.current.name} passed.")
             return
         }
         val enter = !ui.discardMode
@@ -141,7 +167,7 @@ class GameViewModel : ViewModel() {
     private fun toggleSelection(source: CardSource) {
         val ui = _uiState.value
         if (!ui.isHumanTurn) return
-        if (ui.game.players[GameState.HUMAN].cardAt(source) == null) return
+        if (ui.game.current.cardAt(source) == null) return
         if (ui.discardMode && source !is CardSource.Hand) return // in Taki mode only hand cards can be picked
         _uiState.value = ui.copy(selected = if (ui.selected == source) null else source)
     }
@@ -152,7 +178,7 @@ class GameViewModel : ViewModel() {
 
     private fun startAiTurn() {
         val game = _uiState.value.game
-        if (game.isOver || game.currentPlayer != GameState.AI) return
+        if (_uiState.value.mode != GameMode.VS_AI || game.isOver || game.currentPlayer != GameState.AI) return
         aiJob?.cancel()
         aiJob = viewModelScope.launch {
             delay(AI_DELAY_MS)

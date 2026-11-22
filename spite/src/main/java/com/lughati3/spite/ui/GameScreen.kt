@@ -1,6 +1,7 @@
 package com.lughati3.spite.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -44,14 +45,62 @@ import com.lughati3.spite.model.CardSource
 @Composable
 fun GameScreen(viewModel: GameViewModel = viewModel()) {
     val ui by viewModel.uiState.collectAsStateWithLifecycle()
-    GameContent(ui, viewModel)
+    if (ui.mode == null) MenuScreen(viewModel::startGame) else GameContent(ui, viewModel)
+}
+
+@Composable
+private fun MenuScreen(onStart: (GameMode) -> Unit) {
+    Column(
+        Modifier.fillMaxSize().safeDrawingPadding().padding(32.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("Taki Cards", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 36.sp)
+        Text("تكي", color = Gold, fontWeight = FontWeight.Bold, fontSize = 28.sp)
+        Spacer(Modifier.height(32.dp))
+        Button(
+            onClick = { onStart(GameMode.VS_AI) }, modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Color.Black),
+        ) { Text("1 Player  ·  vs AI", fontWeight = FontWeight.Bold) }
+        Spacer(Modifier.height(12.dp))
+        Button(
+            onClick = { onStart(GameMode.TWO_PLAYERS) }, modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = TakiAmber, contentColor = Color.Black),
+        ) { Text("2 Players  ·  pass & play", fontWeight = FontWeight.Bold) }
+        Spacer(Modifier.height(12.dp))
+        Text(
+            "2 Players: share one device. After each turn a cover screen hides the cards until the next player is ready.",
+            color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp, textAlign = TextAlign.Center,
+        )
+    }
+}
+
+/** Opaque cover between turns in pass-and-play so nobody sees the other player's hand. */
+@Composable
+private fun HandoffCover(ui: GameUiState, onReady: () -> Unit) {
+    Column(
+        Modifier.fillMaxSize().background(Color(0xFF0B1F14)).safeDrawingPadding().padding(32.dp)
+            .clickable(enabled = false) {},
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(ui.message, color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(24.dp))
+        Text("Pass the device to", color = Color.White, fontSize = 18.sp)
+        Text(ui.game.current.name, color = Gold, fontWeight = FontWeight.ExtraBold, fontSize = 36.sp)
+        Spacer(Modifier.height(24.dp))
+        Button(
+            onClick = onReady,
+            colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Color.Black),
+        ) { Text("I'm ready — show my cards", fontWeight = FontWeight.Bold) }
+    }
 }
 
 @Composable
 private fun GameContent(ui: GameUiState, vm: GameViewModel) {
     val game = ui.game
-    val human = game.players[GameState.HUMAN]
-    val ai = game.players[GameState.AI]
+    val human = game.players[ui.viewer]      // bottom of the screen
+    val ai = game.players[1 - ui.viewer]     // top of the screen (the AI, or the other human)
 
     BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
         val gap = 6.dp
@@ -68,7 +117,7 @@ private fun GameContent(ui: GameUiState, vm: GameViewModel) {
             Header(ui, vm::newGame)
 
             // ---- AI: hand (hidden), then bank + ground
-            AiHandRow(ai.hand.size, cardW)
+            AiHandRow(ai.name, ai.hand.size, cardW)
             ZoneRow(ai, cardW, isHuman = false, ui = ui, vm = vm)
 
             // ---- Centre
@@ -83,14 +132,21 @@ private fun GameContent(ui: GameUiState, vm: GameViewModel) {
         }
     }
 
+    if (ui.handoff) HandoffCover(ui, vm::onHandoffConfirmed)
+
     game.winner?.let { winner ->
+        val twoPlayers = ui.mode == GameMode.TWO_PLAYERS
         val won = winner == GameState.HUMAN
+        val name = game.players[winner].name
         AlertDialog(
             onDismissRequest = {},
-            title = { Text(if (won) "You win! 🎉" else "You lose 😕", fontWeight = FontWeight.Bold) },
-            text = {
-                Text(if (won) "You emptied your Bank first." else "The AI emptied its Bank first.")
+            title = {
+                Text(
+                    when { twoPlayers -> "$name wins! 🎉"; won -> "You win! 🎉"; else -> "You lose 😕" },
+                    fontWeight = FontWeight.Bold,
+                )
             },
+            text = { Text("$name emptied the Bank first.") },
             confirmButton = { TextButton(onClick = vm::newGame) { Text("New Game") } },
         )
     }
@@ -105,7 +161,12 @@ private fun Header(ui: GameUiState, onNewGame: () -> Unit) {
         Spacer(Modifier.weight(1f))
         val yours = ui.isHumanTurn
         Text(
-            if (ui.game.isOver) "Game over" else if (yours) "● YOUR TURN" else "● AI is playing…",
+            when {
+                ui.game.isOver -> "Game over"
+                ui.mode == GameMode.TWO_PLAYERS -> "● ${ui.game.current.name}'s turn"
+                yours -> "● YOUR TURN"
+                else -> "● AI is playing…"
+            },
             color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp,
             modifier = Modifier
                 .background(if (yours) Gold else Color(0xFFB0BEC5), RoundedCornerShape(50))
@@ -121,10 +182,10 @@ private fun Header(ui: GameUiState, onNewGame: () -> Unit) {
 // ------------------------------------------------------------------------------------ zones
 
 @Composable
-private fun AiHandRow(count: Int, cardW: Dp) {
+private fun AiHandRow(name: String, count: Int, cardW: Dp) {
     val mini = cardW * 0.45f
     Row(Modifier.fillMaxWidth().height(mini * CARD_ASPECT), verticalAlignment = Alignment.CenterVertically) {
-        Text("AI hand", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp, modifier = Modifier.padding(end = 8.dp))
+        Text("$name hand", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp, modifier = Modifier.padding(end = 8.dp))
         repeat(count) { PlayingCard(null, mini, Modifier.padding(end = 4.dp), faceDown = true) }
     }
 }
@@ -240,7 +301,7 @@ private fun ActionRow(ui: GameUiState, vm: GameViewModel) {
             Text(
                 when {
                     taki -> "Cancel"
-                    ui.game.players[GameState.HUMAN].hand.isEmpty() -> "Pass"
+                    ui.game.current.hand.isEmpty() -> "Pass"
                     needsTaki -> "End Turn · Taki (تكي)"
                     else -> "End Turn (place a card)"
                 },
