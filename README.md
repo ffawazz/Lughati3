@@ -47,15 +47,17 @@ export ANDROID_HOME=/path/to/sdk             # platforms;android-34 و build-too
 - لم أُدرج الفصل الثاني (الوحدات ٥–٨) لأنه خارج الطلب.
 - فاحص الخط ضُبط على محاكاة (هيكل خط Amiri وخطوط أخرى بدل خط طفل حقيقي). يقبل الكتابة الصحيحة بحجم/مكان مختلف، لكنه **ليس تعرّفاً على الحروف**: قد يقبل كلمة خاطئة قريبة الشكل (في المحاكاة قُبلت كلمات خاطئة بنسبة ٢٥٪ في عيّنة كبيرة و٧ من ١٨ في اختبار `tests/run.js`) وقد يرفض كتابة صحيحة رديئة — لذلك يوجد زر الوالدين.
 
-## لعبة «Bank» للورق (وحدة `spite/`)
-لعبة ورق لاعبان (ضد الذكاء الاصطناعي، أو لاعبان على جهاز واحد بشاشة تمرير بين الأدوار) مستوحاة من Spite & Malice / Skip-Bo، مكتوبة بـ Kotlin + Jetpack Compose (MVVM). وحدة مستقلة عن التطبيق التعليمي.
+## مجموعة ألعاب الورق (وحدة `spite/`)
+تطبيق مستقل عن التطبيق التعليمي، مُحسَّن للتابلت (أفقي وعمودي): شاشة رئيسية وخمس ألعاب — **Bank** (لاعب أو لاعبان على جهاز واحد) · **Solitaire** (Klondike، سحب ١ أو ٣، تراجع) · **FreeCell** (تراجع، نقل متسلسلات) · **Hearts** (٣ خصوم، تمرير ٣ أوراق، إطلاق القمر) · **Crazy Eights** (ضد الذكاء الاصطناعي).
 ```
 spite/src/main/java/com/lughati3/spite/
-  model/    Card, Rank, Suit, Deck · PlayerState, CardSource · GameState, PileCard
-  domain/   GameRules (كل القواعد، دوال نقية) · AiPlayer (الخصم)
-  ui/       GameViewModel · GameScreen · components/PlayingCard · theme/
-spite/src/test/  GameRulesTest (قواعد + 40 مباراة ذكاء ضد ذكاء)
+  model/        Card, Rank, Suit, Deck (المشترك)
+  ui/           AppRoot (التنقل) · hub/HubScreen · components/ (PlayingCard, CardColumn, ...) · theme/
+  games/bank/ · klondike/ · freecell/ · hearts/ · crazyeights/
+                كل لعبة: Rules (دوال نقية) + ViewModel + Screen (+ AiPlayer عند الحاجة)
+spite/src/test/ اختبارات القواعد + مباريات كاملة بالذكاء الاصطناعي
 ```
+لإضافة لعبة: أنشئ حزمة تحت `games/` ثم أضف عنصراً في `GameId` (HubScreen) وفرعاً في `AppRoot`.
 ```bash
 ./gradlew :spite:testDebugUnitTest :spite:assembleDebug   # spite/build/outputs/apk/debug/spite-debug.apk
 ```

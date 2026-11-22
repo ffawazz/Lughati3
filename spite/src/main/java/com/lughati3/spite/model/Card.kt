@@ -31,6 +31,12 @@ data class Card(val id: Int, val rank: Rank?, val suit: Suit?) {
 object Deck {
     const val SIZE = 108
 
+    /** One standard 52-card deck (ids 0..51), unshuffled. */
+    fun standard52(): List<Card> {
+        var id = 0
+        return Suit.entries.flatMap { suit -> Rank.entries.map { rank -> Card(id++, rank, suit) } }
+    }
+
     /** 2 standard decks + 4 Jokers = 108 cards, in a fixed (unshuffled) order. */
     fun create(): List<Card> {
         var id = 0

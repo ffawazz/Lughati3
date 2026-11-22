@@ -1,11 +1,7 @@
-package com.lughati3.spite.domain
+package com.lughati3.spite.games.bank
 
 import com.lughati3.spite.model.Card
-import com.lughati3.spite.model.CardSource
 import com.lughati3.spite.model.Deck
-import com.lughati3.spite.model.GameState
-import com.lughati3.spite.model.PileCard
-import com.lughati3.spite.model.PlayerState
 import com.lughati3.spite.model.Rank
 import kotlin.random.Random
 

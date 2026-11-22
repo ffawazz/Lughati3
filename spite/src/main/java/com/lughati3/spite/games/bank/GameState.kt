@@ -1,4 +1,7 @@
-package com.lughati3.spite.model
+package com.lughati3.spite.games.bank
+
+import com.lughati3.spite.model.Card
+import com.lughati3.spite.model.Rank
 
 /** A card sitting on a centre pile, plus the rank it counts as (differs from its face for Jokers). */
 data class PileCard(val card: Card, val asRank: Rank)

@@ -4,7 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.lughati3.spite.ui.GameScreen
+import com.lughati3.spite.ui.AppRoot
 import com.lughati3.spite.ui.theme.TakiTheme
 
 class MainActivity : ComponentActivity() {
@@ -13,7 +13,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             TakiTheme {
-                GameScreen()
+                AppRoot()
             }
         }
     }

@@ -1,4 +1,4 @@
-package com.lughati3.spite.ui
+package com.lughati3.spite.games.bank
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -36,23 +36,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.lughati3.spite.model.GameState
-import com.lughati3.spite.model.PlayerState
 import com.lughati3.spite.ui.components.CARD_ASPECT
 import com.lughati3.spite.ui.components.CardStack
 import com.lughati3.spite.ui.components.PlayingCard
 import com.lughati3.spite.ui.theme.Gold
 import com.lughati3.spite.ui.theme.TakiAmber
-import com.lughati3.spite.model.CardSource
 
 @Composable
-fun GameScreen(viewModel: GameViewModel = viewModel()) {
+fun BankScreen(onHome: () -> Unit, viewModel: BankViewModel = viewModel()) {
     val ui by viewModel.uiState.collectAsStateWithLifecycle()
-    if (ui.mode == null) MenuScreen(viewModel::startGame) else GameContent(ui, viewModel)
+    if (ui.mode == null) MenuScreen(viewModel::startGame, onHome) else GameContent(ui, viewModel, onHome)
 }
 
 @Composable
-private fun MenuScreen(onStart: (GameMode) -> Unit) {
+private fun MenuScreen(onStart: (GameMode) -> Unit, onHome: () -> Unit) {
     Column(
         Modifier.fillMaxSize().safeDrawingPadding().padding(32.dp),
         verticalArrangement = Arrangement.Center,
@@ -70,6 +67,10 @@ private fun MenuScreen(onStart: (GameMode) -> Unit) {
             onClick = { onStart(GameMode.TWO_PLAYERS) }, modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = TakiAmber, contentColor = Color.Black),
         ) { Text("2 Players  ·  pass & play", fontWeight = FontWeight.Bold) }
+        Spacer(Modifier.height(12.dp))
+        OutlinedButton(onClick = onHome, modifier = Modifier.fillMaxWidth()) {
+            Text("⌂ All games", color = Color.White)
+        }
         Spacer(Modifier.height(12.dp))
         Text(
             "2 Players: share one device. After each turn a cover screen hides the cards until the next player is ready.",
@@ -100,7 +101,7 @@ private fun HandoffCover(ui: GameUiState, onReady: () -> Unit) {
 }
 
 @Composable
-private fun GameContent(ui: GameUiState, vm: GameViewModel) {
+private fun GameContent(ui: GameUiState, vm: BankViewModel, onHome: () -> Unit) {
     val game = ui.game
     val human = game.players[ui.viewer]      // bottom of the screen
     val ai = game.players[1 - ui.viewer]     // top of the screen (the AI, or the other human)
@@ -119,7 +120,7 @@ private fun GameContent(ui: GameUiState, vm: GameViewModel) {
             Modifier.fillMaxHeight().width(boardW).align(Alignment.TopCenter).padding(horizontal = 8.dp, vertical = 4.dp),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            Header(ui, vm::newGame)
+            Header(ui, vm::newGame, onHome)
 
             // ---- AI: hand (hidden), then bank + ground
             AiHandRow(ai.name, ai.hand.size, cardW)
@@ -160,7 +161,7 @@ private fun GameContent(ui: GameUiState, vm: GameViewModel) {
 // ------------------------------------------------------------------------------------ header
 
 @Composable
-private fun Header(ui: GameUiState, onNewGame: () -> Unit) {
+private fun Header(ui: GameUiState, onNewGame: () -> Unit, onHome: () -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text("Bank", color = Gold, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp)
         Spacer(Modifier.weight(1f))
@@ -181,6 +182,10 @@ private fun Header(ui: GameUiState, onNewGame: () -> Unit) {
         OutlinedButton(onClick = onNewGame, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)) {
             Text("New Game", color = Color.White, fontSize = 12.sp)
         }
+        Spacer(Modifier.width(6.dp))
+        OutlinedButton(onClick = onHome, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)) {
+            Text("⌂ Games", color = Color.White, fontSize = 12.sp)
+        }
     }
 }
 
@@ -197,7 +202,7 @@ private fun AiHandRow(name: String, count: Int, cardW: Dp) {
 
 /** Bank on the left + the 5 ground slots. For the AI these are display-only. */
 @Composable
-private fun ZoneRow(player: PlayerState, cardW: Dp, isHuman: Boolean, ui: GameUiState, vm: GameViewModel) {
+private fun ZoneRow(player: PlayerState, cardW: Dp, isHuman: Boolean, ui: GameUiState, vm: BankViewModel) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
         CardStack(
             top = player.bankTop,
@@ -225,7 +230,7 @@ private fun ZoneRow(player: PlayerState, cardW: Dp, isHuman: Boolean, ui: GameUi
 }
 
 @Composable
-private fun CenterRow(ui: GameUiState, cardW: Dp, vm: GameViewModel) {
+private fun CenterRow(ui: GameUiState, cardW: Dp, vm: BankViewModel) {
     val game = ui.game
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
@@ -273,7 +278,7 @@ private fun MessageBar(text: String, takiMode: Boolean) {
 }
 
 @Composable
-private fun HandRow(human: PlayerState, ui: GameUiState, cardW: Dp, vm: GameViewModel) {
+private fun HandRow(human: PlayerState, ui: GameUiState, cardW: Dp, vm: BankViewModel) {
     Row(
         Modifier.fillMaxWidth().height(cardW * CARD_ASPECT + 12.dp).padding(top = 12.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,
@@ -294,7 +299,7 @@ private fun HandRow(human: PlayerState, ui: GameUiState, cardW: Dp, vm: GameView
 }
 
 @Composable
-private fun ActionRow(ui: GameUiState, vm: GameViewModel) {
+private fun ActionRow(ui: GameUiState, vm: BankViewModel) {
     val taki = ui.discardMode
     val needsTaki = !ui.game.current.hasEmptyGroundSlot
     Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.Center) {

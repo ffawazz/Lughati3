@@ -1,4 +1,7 @@
-package com.lughati3.spite.model
+package com.lughati3.spite.games.bank
+
+import com.lughati3.spite.model.Card
+import com.lughati3.spite.model.Rank
 
 /** Where a card the current player wants to play comes from. */
 sealed interface CardSource {

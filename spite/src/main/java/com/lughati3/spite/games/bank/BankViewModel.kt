@@ -1,14 +1,8 @@
-package com.lughati3.spite.ui
+package com.lughati3.spite.games.bank
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.lughati3.spite.domain.AiMove
-import com.lughati3.spite.domain.AiPlayer
-import com.lughati3.spite.domain.GameRules
-import com.lughati3.spite.domain.MoveResult
 import com.lughati3.spite.model.Card
-import com.lughati3.spite.model.CardSource
-import com.lughati3.spite.model.GameState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -56,7 +50,7 @@ data class GameUiState(
         }
 }
 
-class GameViewModel : ViewModel() {
+class BankViewModel : ViewModel() {
 
     private val rules = GameRules()
     private val ai = AiPlayer(rules)

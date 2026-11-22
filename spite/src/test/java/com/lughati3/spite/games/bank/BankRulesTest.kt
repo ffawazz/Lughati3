@@ -1,14 +1,7 @@
-package com.lughati3.spite
+package com.lughati3.spite.games.bank
 
-import com.lughati3.spite.domain.AiMove
-import com.lughati3.spite.domain.AiPlayer
-import com.lughati3.spite.domain.GameRules
 import com.lughati3.spite.model.Card
-import com.lughati3.spite.model.CardSource
 import com.lughati3.spite.model.Deck
-import com.lughati3.spite.model.GameState
-import com.lughati3.spite.model.PileCard
-import com.lughati3.spite.model.PlayerState
 import com.lughati3.spite.model.Rank
 import com.lughati3.spite.model.Suit
 import kotlin.random.Random
@@ -18,7 +11,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class GameRulesTest {
+class BankRulesTest {
     private val rules = GameRules(Random(1))
     private var nextId = 1000
 
