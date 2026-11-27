@@ -17,7 +17,7 @@ class GuideTest {
     }
 
     @Test fun bankGuideDescribesTheFillThenTakiRule() {
-        val text = guideFor(GameId.BANK).sections.flatMap { it.lines }.joinToString(" ")
+        val text = guideFor(GameId.BANK).sections.flatMap { listOf(it.title) + it.lines }.joinToString(" ")
         assertTrue(text.contains("can't end your turn while any of your 5 ground slots is empty"))
         assertTrue(text.contains("draw 5 new cards"))
         assertTrue(text.contains("only 3 shared piles"))
