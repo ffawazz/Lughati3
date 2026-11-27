@@ -20,5 +20,7 @@ class GuideTest {
         val text = guideFor(GameId.BANK).sections.flatMap { it.lines }.joinToString(" ")
         assertTrue(text.contains("can't end your turn while any of your 5 ground slots is empty"))
         assertTrue(text.contains("draw 5 new cards"))
+        assertTrue(text.contains("only 3 shared piles"))
+        assertTrue(text.contains("Stalemate") || text.contains("stalemate"))
     }
 }

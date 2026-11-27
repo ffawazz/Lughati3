@@ -27,7 +27,7 @@ class BankRulesTest {
     private fun state(me: PlayerState, deck: List<Card> = emptyList(), piles: List<List<PileCard>>? = null) = GameState(
         players = listOf(me, player(hand = List(5) { c(Rank.NINE) })),
         drawPile = deck,
-        centerPiles = piles ?: List(4) { emptyList() },
+        centerPiles = piles ?: List(GameRules.CENTER_PILES) { emptyList() },
         completedCards = emptyList(),
         currentPlayer = 0,
     )
@@ -45,7 +45,7 @@ class BankRulesTest {
         val g = rules.newGame()
         g.players.forEach { assertEquals(5, it.hand.size); assertEquals(10, it.bank.size); assertEquals(5, it.ground.size); assertTrue(it.ground.all { g -> g.size == 1 }) }
         assertEquals(108 - 40, g.drawPile.size) // 2 x (5 hand + 5 ground + 10 bank)
-        assertEquals(4, g.centerPiles.size)
+        assertEquals(3, g.centerPiles.size)
         assertEquals(GameState.HUMAN, g.currentPlayer)
     }
 
@@ -65,14 +65,14 @@ class BankRulesTest {
     }
 
     @Test fun pilesMustAscendAndJokerTakesNextRank() {
-        val s = state(player(hand = listOf(c(Rank.FIVE), c(Rank.FOUR), joker())), piles = listOf(pileOf(3), emptyList(), emptyList(), emptyList()))
+        val s = state(player(hand = listOf(c(Rank.FIVE), c(Rank.FOUR), joker())), piles = listOf(pileOf(3), emptyList(), emptyList()))
         assertNull(rules.playToCenter(s, CardSource.Hand(0), 0))
         assertNotNull(rules.playToCenter(s, CardSource.Hand(1), 0))
         assertEquals(Rank.FOUR, rules.playToCenter(s, CardSource.Hand(2), 0)!!.playedAs)
     }
 
     @Test fun kingCompletesAndClearsThePile() {
-        val s = state(player(hand = listOf(c(Rank.KING), joker())), piles = listOf(pileOf(12), emptyList(), emptyList(), emptyList()))
+        val s = state(player(hand = listOf(c(Rank.KING), joker())), piles = listOf(pileOf(12), emptyList(), emptyList()))
         val r = rules.playToCenter(s, CardSource.Hand(0), 0)!!
         assertTrue(r.pileCompleted)
         assertTrue(r.state.centerPiles[0].isEmpty())
@@ -166,6 +166,35 @@ class BankRulesTest {
         assertTrue(after2.completedCards.isEmpty())
     }
 
+    @Test fun fourPassesInARowEndTheGameByStalemate() {
+        // No hand cards, nothing to draw, no playable cards: every turn is a pass.
+        val a = player(hand = emptyList(), bank = listOf(c(Rank.KING), c(Rank.KING), c(Rank.KING)))
+        val b = player(hand = emptyList(), bank = listOf(c(Rank.KING), c(Rank.KING)))
+        var s = GameState(listOf(a, b), emptyList(), List(3) { pileOf(10) }, emptyList(), 0)
+        repeat(3) { s = rules.passTurn(s)!!; assertTrue(!s.isOver) }
+        s = rules.passTurn(s)!!
+        assertTrue(s.isOver && s.stalemate)
+        assertEquals(1, s.winner)            // fewer Bank cards left (2 < 3)
+        assertNull(rules.passTurn(s))        // nothing more can happen
+        // equal Banks = draw
+        val tie = GameState(listOf(a, a.copy(name = "q")), emptyList(), List(3) { pileOf(10) }, emptyList(), 0)
+        var t = tie
+        repeat(4) { t = rules.passTurn(t)!! }
+        assertTrue(t.isOver && t.stalemate); assertNull(t.winner)
+    }
+
+    @Test fun anyPlayResetsThePassStreak() {
+        val p0 = player(hand = emptyList(), bank = listOf(c(Rank.NINE), c(Rank.ACE)))
+        val p1 = player(hand = emptyList(), bank = listOf(c(Rank.KING)))
+        var s = GameState(listOf(p0, p1), emptyList(), List(3) { emptyList() }, emptyList(), 0)
+        repeat(3) { s = rules.passTurn(s)!! }
+        assertEquals(3, s.passStreak)
+        // seat 1 is to move after 3 passes... make seat-0 play instead: hand it a playable bank card
+        val back = s.copy(currentPlayer = 0)
+        val played = rules.playToCenter(back, CardSource.Bank, 0)!!.state
+        assertEquals(0, played.passStreak)
+    }
+
     @Test fun aiPlaysBankBeforeHand() {
         val s = state(player(hand = listOf(c(Rank.ACE)), bank = listOf(c(Rank.NINE), c(Rank.ACE))))
         val move = AiPlayer(rules).chooseMove(s) as AiMove.Play
@@ -221,7 +250,7 @@ class BankRulesTest {
                     s.drawPile.size + s.completedCards.size + s.centerPiles.sumOf { it.size }
                 assertEquals(108, total)
             }
-            assertEquals(0, s.players[s.winner!!].bank.size)
+            if (!s.stalemate) assertEquals(0, s.players[s.winner!!].bank.size)
         }
     }
 }

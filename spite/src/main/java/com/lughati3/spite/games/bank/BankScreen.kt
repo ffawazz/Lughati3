@@ -145,19 +145,32 @@ private fun GameContent(ui: GameUiState, vm: BankViewModel, onHome: () -> Unit, 
 
     if (ui.handoff) HandoffCover(ui, vm::onHandoffConfirmed)
 
-    game.winner?.let { winner ->
+    if (game.isOver) {
+        val winner = game.winner
         val twoPlayers = ui.mode == GameMode.TWO_PLAYERS
-        val won = winner == GameState.HUMAN
-        val name = game.players[winner].name
+        val name = winner?.let { game.players[it].name }
         AlertDialog(
             onDismissRequest = {},
             title = {
                 Text(
-                    when { twoPlayers -> "$name wins! 🎉"; won -> "You win! 🎉"; else -> "You lose 😕" },
+                    when {
+                        winner == null -> "It's a draw"
+                        twoPlayers -> "$name wins! 🎉"
+                        winner == GameState.HUMAN -> "You win! 🎉"
+                        else -> "You lose 😕"
+                    },
                     fontWeight = FontWeight.Bold,
                 )
             },
-            text = { Text("$name emptied the Bank first.") },
+            text = {
+                Text(
+                    when {
+                        winner == null -> "Nobody can play any more and both Banks are the same size."
+                        game.stalemate -> "Nobody can play any more. $name wins with fewer cards left in the Bank."
+                        else -> "$name emptied the Bank first."
+                    },
+                )
+            },
             confirmButton = { TextButton(onClick = vm::newGame) { Text("New Game") } },
         )
     }

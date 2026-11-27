@@ -31,7 +31,7 @@ private val BANK = Guide(
             "Hand — 5 cards, private to you (the AI's hand is face down).",
             "Ground — 5 face-up slots in front of you; each slot already holds one card at the start. Each slot is a stack and only its top card can be played.",
             "Bank — 10 cards; only the top card is face up. When it is played the next card is revealed.",
-            "Centre piles — up to 4 shared piles that both players build from Ace up to King, in any suit.",
+            "Centre piles — only 3 shared piles can be open at a time. Both players build them from Ace up to King, in any suit. A pile slot is free again once its pile reaches King.",
             "Draw pile — the face-down deck. When it runs out, the finished (King) piles are shuffled back into it.",
         )),
         GuideSection("Your turn", listOf(
@@ -57,6 +57,11 @@ private val BANK = Guide(
             "Cover high or useless cards when you Taki, and keep low cards (Aces, 2s, 3s) on top where you can reach them.",
             "Save Jokers for unlocking a Bank card or chaining several plays. The AI does the same.",
             "Don't cover a card you need soon; a covered card can't be used until the card on top is gone.",
+            "With just 3 piles, every pile you advance matters: watch your opponent's Bank card (it is face up) and avoid building a pile up to exactly the rank they need.",
+            "Likewise you can hold back Aces and keep the piles busy so your opponent can't start a new pile for their own Ace.",
+        )),
+        GuideSection("Stalemate", listOf(
+            "If the draw pile is empty and nobody can play any more (four turns in a row end in a pass), the game ends. The player with fewer cards left in their Bank wins; equal Banks is a draw. This is very rare.",
         )),
     ),
 )

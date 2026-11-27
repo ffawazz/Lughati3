@@ -85,6 +85,11 @@ class BankViewModel : ViewModel() {
 
     /** After the human's turn ended: AI mode -> AI plays; 2-player mode -> cover the screen. */
     private fun afterTurnEnded(ui: GameUiState, summary: String) {
+        if (ui.game.isOver) { // the stalemate rule ended the game on this pass
+            _uiState.value = ui.copy(selected = null, discardMode = false, message = "Stalemate: nobody can play any more.")
+            recordIfOver(ui.game, ui.mode)
+            return
+        }
         if (ui.mode == GameMode.TWO_PLAYERS) {
             _uiState.value = ui.copy(handoff = true, selected = null, discardMode = false, message = summary)
         } else {
@@ -160,15 +165,16 @@ class BankViewModel : ViewModel() {
 
     /** Logs a finished game once (a winner exists only on the transition that ends it). */
     private fun recordIfOver(game: GameState, mode: GameMode?) {
-        val winner = game.winner ?: return
+        if (!game.isOver) return
+        val winner = game.winner
+        val how = if (game.stalemate) "stalemate, fewer Bank cards left" else "emptied their Bank first"
         if (mode == GameMode.TWO_PLAYERS) {
-            History.record(GameId.BANK, Outcome.PLAYED, "2 players · ${game.players[winner].name} won", variant = "2 players")
-        } else {
-            val won = winner == GameState.HUMAN
-            History.record(
-                GameId.BANK, if (won) Outcome.WIN else Outcome.LOSS,
-                if (won) "You emptied your Bank first" else "The AI emptied its Bank first", variant = "vs AI",
-            )
+            val result = if (winner == null) "draw (stalemate)" else "${game.players[winner].name} won ($how)"
+            History.record(GameId.BANK, Outcome.PLAYED, "2 players · $result", variant = "2 players")
+        } else when (winner) {
+            null -> History.record(GameId.BANK, Outcome.PLAYED, "Draw — stalemate, equal Banks", variant = "vs AI")
+            GameState.HUMAN -> History.record(GameId.BANK, Outcome.WIN, "You won ($how)", variant = "vs AI")
+            else -> History.record(GameId.BANK, Outcome.LOSS, "The AI won ($how)", variant = "vs AI")
         }
     }
 
@@ -237,7 +243,8 @@ class BankViewModel : ViewModel() {
                     }
                     AiMove.Pass -> {
                         val next = rules.passTurn(state) ?: return@launch
-                        _uiState.update { it.copy(game = next, message = "AI passed. Your turn.") }
+                        _uiState.update { it.copy(game = next, message = if (next.stalemate) "Stalemate." else "AI passed. Your turn.") }
+                        recordIfOver(next, _uiState.value.mode)
                         return@launch
                     }
                 }

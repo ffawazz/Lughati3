@@ -72,6 +72,7 @@ class GameRules(private val random: Random = Random.Default) {
                 if (i != pileIndex) p else if (completed) emptyList() else newPile
             },
             completedCards = if (completed) state.completedCards + newPile.map { it.card } else state.completedCards,
+            passStreak = 0,
         ).withPlayer(state.currentPlayer, player)
 
         // Win: the last Bank card has just been played.
@@ -105,7 +106,7 @@ class GameRules(private val random: Random = Random.Default) {
             hand = player.hand.filterIndexed { i, _ -> i != handIndex },
             ground = player.ground.mapIndexed { i, stack -> if (i == slot) listOf(card) else stack },
         )
-        var next = state.withPlayer(state.currentPlayer, updated)
+        var next = state.withPlayer(state.currentPlayer, updated).copy(passStreak = 0)
         val refilled = updated.hand.isEmpty()
         if (refilled) next = draw(next, state.currentPlayer, HAND_SIZE)
         return GroundResult(next, refilled)
@@ -127,12 +128,28 @@ class GameRules(private val random: Random = Random.Default) {
             hand = player.hand.filterIndexed { i, _ -> i != handIndex },
             ground = player.ground.mapIndexed { i, stack -> if (i == slot) stack + card else stack },
         )
-        return endTurn(state.withPlayer(state.currentPlayer, updated))
+        return endTurn(state.withPlayer(state.currentPlayer, updated).copy(passStreak = 0))
     }
 
     /** Only legal when the hand is empty (e.g. draw pile exhausted): nothing to place, just pass. */
-    fun passTurn(state: GameState): GameState? =
-        if (!state.isOver && state.current.hand.isEmpty()) endTurn(state) else null
+    fun passTurn(state: GameState): GameState? {
+        if (state.isOver || state.current.hand.isEmpty().not()) return null
+        val streak = state.passStreak + 1
+        if (streak >= STALEMATE_PASSES) return declareStalemate(state.copy(passStreak = streak))
+        return endTurn(state.copy(passStreak = streak))
+    }
+
+    /**
+     * With only 3 centre piles it can happen that every pile waits for a card nobody can reach (say all
+     * three need a King that is buried) and the draw pile is empty. Rather than pass forever, the game
+     * ends: whoever has fewer cards left in their Bank wins; equal Banks is a draw (no winner).
+     */
+    private fun declareStalemate(state: GameState): GameState {
+        val a = state.players[0].bank.size
+        val b = state.players[1].bank.size
+        val winner = when { a < b -> 0; b < a -> 1; else -> null }
+        return state.copy(stalemate = true, winner = winner)
+    }
 
     private fun endTurn(state: GameState): GameState {
         val next = 1 - state.currentPlayer
@@ -187,7 +204,10 @@ class GameRules(private val random: Random = Random.Default) {
         const val HAND_SIZE = 5
         const val BANK_SIZE = 10
         const val GROUND_SLOTS = 5
-        const val CENTER_PILES = 4
+        const val CENTER_PILES = 3
+
+        /** This many turns in a row ending in a pass (nobody playing a card) means nobody can move any more. */
+        const val STALEMATE_PASSES = 4
 
         /** A Joker fits anywhere; any other card must be exactly the next rank (an empty pile wants an Ace). */
         fun canPlay(card: Card, pile: List<PileCard>): Boolean =

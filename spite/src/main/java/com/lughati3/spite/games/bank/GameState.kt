@@ -20,9 +20,14 @@ data class GameState(
     val completedCards: List<Card>,
     val currentPlayer: Int,
     val winner: Int? = null,
+    /** Consecutive turns that ended in a pass with no card played (see [GameRules.STALEMATE_PASSES]). */
+    val passStreak: Int = 0,
+    /** Nobody can make progress any more: the game was ended by the stalemate rule. */
+    val stalemate: Boolean = false,
 ) {
     val current: PlayerState get() = players[currentPlayer]
-    val isOver: Boolean get() = winner != null
+    /** A game ends by someone emptying their Bank, or by stalemate (which may have no winner: a draw). */
+    val isOver: Boolean get() = winner != null || stalemate
 
     companion object {
         const val HUMAN = 0
