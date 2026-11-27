@@ -60,6 +60,11 @@ private val BANK = Guide(
             "With just 3 piles, every pile you advance matters: watch your opponent's Bank card (it is face up) and avoid building a pile up to exactly the rank they need.",
             "Likewise you can hold back Aces and keep the piles busy so your opponent can't start a new pile for their own Ace.",
         )),
+        GuideSection("Playing the computer: Easy or Hard", listOf(
+            "Easy — a solid opponent. It plans each turn several cards ahead, saves its Jokers for when they pay off and avoids handing you your Bank card.",
+            "Hard — everything Easy does, plus it counts cards: it knows which cards are still hidden, estimates how likely you are to hold the exact card you need, and plays to stop you. It protects the cards it needs for its own Bank, stacks its ground tidily and presses harder as your Bank runs down.",
+            "Neither AI ever looks at the draw pile or at your hand — they only use what a person at the table can see.",
+        )),
         GuideSection("Stalemate", listOf(
             "If the draw pile is empty and nobody can play any more (four turns in a row end in a pass), the game ends. The player with fewer cards left in their Bank wins; equal Banks is a draw. This is very rare.",
         )),

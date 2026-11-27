@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -46,13 +47,14 @@ import com.lughati3.spite.ui.theme.TakiAmber
 @Composable
 fun BankScreen(onHome: () -> Unit, onHelp: () -> Unit, viewModel: BankViewModel = viewModel()) {
     val ui by viewModel.uiState.collectAsStateWithLifecycle()
-    if (ui.mode == null) MenuScreen(viewModel::startGame, onHome, onHelp) else GameContent(ui, viewModel, onHome, onHelp)
+    if (ui.mode == null) MenuScreen({ mode, level -> viewModel.startGame(mode, level) }, onHome, onHelp) else GameContent(ui, viewModel, onHome, onHelp)
 }
 
 @Composable
-private fun MenuScreen(onStart: (GameMode) -> Unit, onHome: () -> Unit, onHelp: () -> Unit) {
+private fun MenuScreen(onStart: (GameMode, AiLevel) -> Unit, onHome: () -> Unit, onHelp: () -> Unit) {
+    Box(Modifier.fillMaxSize().safeDrawingPadding(), contentAlignment = Alignment.Center) {
     Column(
-        Modifier.fillMaxSize().safeDrawingPadding().padding(32.dp),
+        Modifier.widthIn(max = 460.dp).padding(32.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -60,12 +62,17 @@ private fun MenuScreen(onStart: (GameMode) -> Unit, onHome: () -> Unit, onHelp: 
         Text("Empty your Bank first", color = Color.White.copy(alpha = 0.8f), fontSize = 16.sp)
         Spacer(Modifier.height(32.dp))
         Button(
-            onClick = { onStart(GameMode.VS_AI) }, modifier = Modifier.fillMaxWidth(),
+            onClick = { onStart(GameMode.VS_AI, AiLevel.EASY) }, modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Color.Black),
-        ) { Text("1 Player  ·  vs AI", fontWeight = FontWeight.Bold) }
+        ) { Text("1 Player  ·  vs AI  ·  Easy", fontWeight = FontWeight.Bold) }
         Spacer(Modifier.height(12.dp))
         Button(
-            onClick = { onStart(GameMode.TWO_PLAYERS) }, modifier = Modifier.fillMaxWidth(),
+            onClick = { onStart(GameMode.VS_AI, AiLevel.HARD) }, modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935), contentColor = Color.White),
+        ) { Text("1 Player  ·  vs AI  ·  Hard", fontWeight = FontWeight.Bold) }
+        Spacer(Modifier.height(12.dp))
+        Button(
+            onClick = { onStart(GameMode.TWO_PLAYERS, AiLevel.EASY) }, modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = TakiAmber, contentColor = Color.Black),
         ) { Text("2 Players  ·  pass & play", fontWeight = FontWeight.Bold) }
         Spacer(Modifier.height(12.dp))
@@ -78,9 +85,11 @@ private fun MenuScreen(onStart: (GameMode) -> Unit, onHome: () -> Unit, onHelp: 
         }
         Spacer(Modifier.height(12.dp))
         Text(
-            "2 Players: share one device. After each turn a cover screen hides the cards until the next player is ready.",
+            "Easy plans well and defends a little. Hard counts cards, calculates what you could play next and plays to deny it.\n" +
+                "2 Players: share one device. After each turn a cover screen hides the cards until the next player is ready.",
             color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp, textAlign = TextAlign.Center,
         )
+    }
     }
 }
 

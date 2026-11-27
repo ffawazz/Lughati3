@@ -27,14 +27,14 @@ class GameRules(private val random: Random = Random.Default) {
 
     // ---------------------------------------------------------------- setup
 
-    fun newGame(twoPlayers: Boolean = false): GameState {
+    fun newGame(twoPlayers: Boolean = false, aiName: String = "AI"): GameState {
         val deck = Deck.create().shuffled(random)
         var cursor = 0
         fun take(n: Int): List<Card> = deck.subList(cursor, cursor + n).also { cursor += n }
 
         val players = listOf(
             dealPlayer(if (twoPlayers) "Player 1" else "You", true, ::take),
-            dealPlayer(if (twoPlayers) "Player 2" else "AI", twoPlayers, ::take),
+            dealPlayer(if (twoPlayers) "Player 2" else aiName, twoPlayers, ::take),
         )
         return GameState(
             players = players,

@@ -122,6 +122,11 @@ class ScreenshotTest {
         save("history")
     }
 
+    @Test fun bankMenu() {
+        rule.setContent { TakiTheme { com.lughati3.spite.games.bank.BankScreen(onHome = {}, onHelp = {}, viewModel = com.lughati3.spite.games.bank.BankViewModel()) } }
+        save("bank_menu")
+    }
+
     @Test fun solitaire() {
         rule.setContent { TakiTheme { KlondikeScreen(onHome = {}, onHelp = {}, vm = KlondikeViewModel()) } }
         save("solitaire")

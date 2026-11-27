@@ -24,6 +24,8 @@ data class GameUiState(
     val game: GameState,
     /** null = the mode menu is showing. */
     val mode: GameMode? = null,
+    /** Difficulty of the computer opponent (only meaningful in [GameMode.VS_AI]). */
+    val aiLevel: AiLevel = AiLevel.EASY,
     /** Pass-and-play: cover screen shown between turns so the next player's hand stays private. */
     val handoff: Boolean = false,
     val selected: CardSource? = null,
@@ -56,7 +58,7 @@ data class GameUiState(
 class BankViewModel : ViewModel() {
 
     private val rules = GameRules()
-    private val ai = AiPlayer(rules)
+    private var ai: BankAi = AiLevel.EASY.create(rules)
 
     private val _uiState = MutableStateFlow(GameUiState(rules.newGame()))
     val uiState: StateFlow<GameUiState> = _uiState.asStateFlow()
@@ -71,11 +73,13 @@ class BankViewModel : ViewModel() {
         _uiState.value = GameUiState(rules.newGame())
     }
 
-    fun startGame(mode: GameMode) {
+    fun startGame(mode: GameMode, level: AiLevel = AiLevel.EASY) {
+        ai = level.create(rules)
         aiJob?.cancel()
         _uiState.value = GameUiState(
-            game = rules.newGame(twoPlayers = mode == GameMode.TWO_PLAYERS),
+            game = rules.newGame(twoPlayers = mode == GameMode.TWO_PLAYERS, aiName = "AI (${level.label})"),
             mode = mode,
+            aiLevel = level,
             message = if (mode == GameMode.TWO_PLAYERS) "Player 1 starts. $YOUR_TURN_HINT" else YOUR_TURN_HINT,
         )
     }
@@ -164,17 +168,20 @@ class BankViewModel : ViewModel() {
     }
 
     /** Logs a finished game once (a winner exists only on the transition that ends it). */
-    private fun recordIfOver(game: GameState, mode: GameMode?) {
+    private fun recordIfOver(game: GameState, mode: GameMode?, level: AiLevel = _uiState.value.aiLevel) {
         if (!game.isOver) return
         val winner = game.winner
         val how = if (game.stalemate) "stalemate, fewer Bank cards left" else "emptied their Bank first"
         if (mode == GameMode.TWO_PLAYERS) {
             val result = if (winner == null) "draw (stalemate)" else "${game.players[winner].name} won ($how)"
             History.record(GameId.BANK, Outcome.PLAYED, "2 players · $result", variant = "2 players")
-        } else when (winner) {
-            null -> History.record(GameId.BANK, Outcome.PLAYED, "Draw — stalemate, equal Banks", variant = "vs AI")
-            GameState.HUMAN -> History.record(GameId.BANK, Outcome.WIN, "You won ($how)", variant = "vs AI")
-            else -> History.record(GameId.BANK, Outcome.LOSS, "The AI won ($how)", variant = "vs AI")
+        } else {
+            val ai = "vs AI · ${level.label}"
+            when (winner) {
+                null -> History.record(GameId.BANK, Outcome.PLAYED, "$ai · draw (stalemate, equal Banks)", variant = ai)
+                GameState.HUMAN -> History.record(GameId.BANK, Outcome.WIN, "$ai · you won ($how)", variant = ai)
+                else -> History.record(GameId.BANK, Outcome.LOSS, "$ai · the AI won ($how)", variant = ai)
+            }
         }
     }
 

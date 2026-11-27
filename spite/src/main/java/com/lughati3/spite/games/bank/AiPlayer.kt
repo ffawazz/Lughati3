@@ -3,6 +3,21 @@ package com.lughati3.spite.games.bank
 import com.lughati3.spite.model.Card
 import com.lughati3.spite.model.Rank
 
+/** Anything that can pick the computer's next move. */
+interface BankAi {
+    fun chooseMove(state: GameState): AiMove
+}
+
+enum class AiLevel(val label: String) {
+    EASY("Easy"),
+    HARD("Hard");
+
+    fun create(rules: GameRules): BankAi = when (this) {
+        EASY -> AiPlayer(rules)
+        HARD -> HardAiPlayer(rules)
+    }
+}
+
 sealed interface AiMove {
     data class Play(val source: CardSource, val pile: Int) : AiMove
     /** Put a hand card on an empty ground slot (does not end the turn). */
@@ -31,23 +46,40 @@ sealed interface AiMove {
  *     slot where covering hurts least, preferring tidy stacks (low cards on top of higher ones, so the
  *     stack unwinds in the order it will be played).
  */
-class AiPlayer(private val rules: GameRules, private val nodeBudget: Int = DEFAULT_BUDGET) {
+open class AiPlayer(
+    protected val rules: GameRules,
+    private val nodeBudget: Int = DEFAULT_BUDGET,
+    private val maxDepth: Int = MAX_DEPTH,
+) : BankAi {
 
-    fun chooseMove(state: GameState): AiMove = planPlay(state) ?: endOfTurnMove(state)
+    override fun chooseMove(state: GameState): AiMove {
+        prepare(state)
+        return planPlay(state) ?: endOfTurnMove(state)
+    }
+
+    // How much each kind of play is worth to the planner. Easy uses these defaults; Hard overrides them.
+    protected open val groundValue: Double get() = GROUND_VALUE
+    protected open val handValue: Double get() = HAND_VALUE
+    protected open val refillValue: Double get() = REFILL_VALUE
+    protected open val pileCompleteValue: Double get() = PILE_COMPLETE_VALUE
+    protected open val jokerCost: Double get() = JOKER_COST
+
+    /** Hook: called once at the start of every decision, before any search (a subclass can gather knowledge here). */
+    protected open fun prepare(state: GameState) {}
 
     // ================================================================ 1. planning the plays
 
-    private class Candidate(val source: CardSource, val pile: Int, val result: MoveResult, val gain: Double)
+    protected class Candidate(val source: CardSource, val pile: Int, val result: MoveResult, val gain: Double)
 
     /** Search bookkeeping for one planning call. */
-    private inner class Search {
+    protected inner class Search(private val budget: Int = nodeBudget) {
         var nodes = 0
         val memo = HashMap<String, Double>()
 
         /** Best total value obtainable from [state] on: either stop here, or play on. */
         fun best(state: GameState, depth: Int): Double {
             val stop = terminal(state)
-            if (depth <= 0 || nodes >= nodeBudget) return stop
+            if (depth <= 0 || nodes >= budget) return stop
             val key = keyOf(state)
             memo[key]?.let { return it }
             nodes++
@@ -63,7 +95,7 @@ class AiPlayer(private val rules: GameRules, private val nodeBudget: Int = DEFAU
         fun continuation(c: Candidate, depth: Int): Double = when {
             c.result.state.isOver -> WIN_VALUE + depth * 1000.0 // winning sooner beats winning later
             // The draw pile is hidden information: stop planning when a refill happens.
-            c.result.handRefilled -> REFILL_VALUE + terminal(c.result.state)
+            c.result.handRefilled -> refillValue + terminal(c.result.state)
             else -> best(c.result.state, depth - 1)
         }
     }
@@ -75,7 +107,7 @@ class AiPlayer(private val rules: GameRules, private val nodeBudget: Int = DEFAU
         var best: AiMove.Play? = null
         var bestValue = terminal(state) + MIN_IMPROVEMENT
         for (c in candidates(state)) {
-            val v = c.gain + search.continuation(c, MAX_DEPTH)
+            val v = c.gain + search.continuation(c, maxDepth)
             if (v > bestValue) { bestValue = v; best = AiMove.Play(c.source, c.pile) }
         }
         return best
@@ -108,11 +140,11 @@ class AiPlayer(private val rules: GameRules, private val nodeBudget: Int = DEFAU
     private fun gainOf(source: CardSource, card: Card, r: MoveResult): Double {
         var g = when (source) {
             CardSource.Bank -> BANK_VALUE
-            is CardSource.Ground -> GROUND_VALUE
-            is CardSource.Hand -> HAND_VALUE
+            is CardSource.Ground -> groundValue
+            is CardSource.Hand -> handValue
         }
-        if (card.isJoker && source != CardSource.Bank) g -= JOKER_COST // a wildcard is worth saving
-        if (r.pileCompleted) g += PILE_COMPLETE_VALUE
+        if (card.isJoker && source != CardSource.Bank) g -= jokerCost // a wildcard is worth saving
+        if (r.pileCompleted) g += pileCompleteValue
         return g
     }
 
@@ -132,7 +164,7 @@ class AiPlayer(private val rules: GameRules, private val nodeBudget: Int = DEFAU
      * How good is the table for the current player if it stops playing now? Positive = ready for
      * our next turn; negative = we are handing the opponent plays.
      */
-    private fun terminal(state: GameState): Double {
+    protected open fun terminal(state: GameState): Double {
         val me = state.current
         val opp = state.players[1 - state.currentPlayer]
         var score = 0.0
@@ -148,7 +180,7 @@ class AiPlayer(private val rules: GameRules, private val nodeBudget: Int = DEFAU
     }
 
     /** How many cards a pile still needs before [card] can be played (null = never / not applicable). */
-    private fun gapTo(state: GameState, card: Card): Int? {
+    protected fun gapTo(state: GameState, card: Card): Int? {
         if (card.isJoker) return 0
         val r = card.rank!!.value
         return state.centerPiles
@@ -171,14 +203,14 @@ class AiPlayer(private val rules: GameRules, private val nodeBudget: Int = DEFAU
     // ================================================================ 3. ending the turn
 
     /** Stopping means: fill every empty ground slot first (turn goes on), then Taki. */
-    private fun endOfTurnMove(state: GameState): AiMove {
+    protected open fun endOfTurnMove(state: GameState): AiMove {
         val me = state.current
         if (me.hand.isEmpty()) return AiMove.Pass
         return if (me.hasEmptyGroundSlot) fillMove(state) else takiMove(state)
     }
 
     /** How much we would miss [card] if it were stuck on the ground (higher = keep it accessible). */
-    private fun usefulness(state: GameState, card: Card): Double {
+    protected open fun usefulness(state: GameState, card: Card): Double {
         if (card.isJoker) return 100.0
         val me = state.current
         val r = card.rank!!.value
@@ -193,8 +225,11 @@ class AiPlayer(private val rules: GameRules, private val nodeBudget: Int = DEFAU
         return v
     }
 
+    /** Hook: extra cost of putting [card] on top of [stack] (0 for the Easy AI). */
+    protected open fun extraTakiCost(state: GameState, card: Card, stack: List<Card>): Double = 0.0
+
     /** Park the least useful hand card on an empty slot. */
-    private fun fillMove(state: GameState): AiMove {
+    protected open fun fillMove(state: GameState): AiMove {
         val me = state.current
         val slot = me.ground.indexOfFirst { it.isEmpty() }
         val i = me.hand.indices.minBy { usefulness(state, me.hand[it]) }
@@ -202,10 +237,13 @@ class AiPlayer(private val rules: GameRules, private val nodeBudget: Int = DEFAU
     }
 
     /** The Taki: cover the slot where it costs least, with the card we need least. */
-    private fun takiMove(state: GameState): AiMove {
+    protected open fun takiMove(state: GameState): AiMove =
+        takiCandidates(state).firstOrNull()?.first ?: AiMove.Pass
+
+    /** Every possible Taki with its heuristic cost, cheapest first (ties keep the order they were generated in). */
+    protected fun takiCandidates(state: GameState): List<Pair<AiMove.Discard, Double>> {
         val me = state.current
-        var best: AiMove.Discard? = null
-        var bestCost = Double.MAX_VALUE
+        val out = ArrayList<Pair<AiMove.Discard, Double>>()
         for (i in me.hand.indices) {
             val card = me.hand[i]
             for (slot in me.ground.indices) {
@@ -221,32 +259,33 @@ class AiPlayer(private val rules: GameRules, private val nodeBudget: Int = DEFAU
                 }
                 cost += burial * usefulness(state, top)
                 cost += STACK_DEPTH_COST * stack.size
+                cost += extraTakiCost(state, card, stack)
                 // A perfect descending run (6 on a 7) unwinds in playing order.
                 if (!card.isJoker && !top.isJoker && top.rank!!.value - card.rank!!.value == 1) cost -= RUN_BONUS
-                if (cost < bestCost) { bestCost = cost; best = AiMove.Discard(i, slot) }
+                out += AiMove.Discard(i, slot) to cost
             }
         }
-        return best ?: AiMove.Pass
+        return out.sortedBy { it.second } // stable: equal costs stay in generation order
     }
 
     companion object {
         const val DEFAULT_BUDGET = 5000
-        private const val MAX_DEPTH = 16
+        internal const val MAX_DEPTH = 16
         private const val MIN_IMPROVEMENT = 1.0
 
         private const val WIN_VALUE = 1_000_000.0
         private const val BANK_VALUE = 1000.0
-        private const val GROUND_VALUE = 35.0
-        private const val HAND_VALUE = 8.0
-        private const val REFILL_VALUE = 45.0
-        private const val PILE_COMPLETE_VALUE = 12.0
-        private const val JOKER_COST = 38.0
+        internal const val GROUND_VALUE = 35.0
+        internal const val HAND_VALUE = 8.0
+        internal const val REFILL_VALUE = 45.0
+        internal const val PILE_COMPLETE_VALUE = 12.0
+        internal const val JOKER_COST = 38.0
 
-        private const val BANK_THREAT = 320.0
-        private const val BANK_THREAT_NEAR = 70.0
-        private const val GROUND_THREAT = 30.0
-        private const val GROUND_THREAT_NEAR = 8.0
-        private const val READINESS = 0.35
+        internal const val BANK_THREAT = 320.0
+        internal const val BANK_THREAT_NEAR = 70.0
+        internal const val GROUND_THREAT = 30.0
+        internal const val GROUND_THREAT_NEAR = 8.0
+        internal const val READINESS = 0.35
 
         private const val TAKI_CARD_WEIGHT = 0.6
         private const val BURY_UNDER_LOWER = 0.3
